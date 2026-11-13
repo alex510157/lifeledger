@@ -1,1 +1,2098 @@
-<!doctype html><html lang="zh-Hant"><head><meta charset="utf-8"><meta name="robots" content="noindex"><title>LifeLedger 隨手記</title><script>location.replace("https://alexledger.netlify.app/"+location.search+location.hash)</script><meta http-equiv="refresh" content="0;url=https://alexledger.netlify.app/"></head><body><a href="https://alexledger.netlify.app/">LifeLedger 隨手記</a></body></html>
+<!DOCTYPE html>
+<html lang="zh-Hant">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-title" content="隨手記">
+<meta name="theme-color" content="#0E2035">
+<title>LifeLedger 隨手記</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Noto+Sans+TC:wght@400;500;700;900&family=Noto+Serif+TC:wght@700;900&family=IBM+Plex+Mono:wght@500;600&display=swap">
+<script>window.LL_API="https://alexledger.netlify.app";var LLAPI=/^https?:\/\//.test(window.LL_API)?window.LL_API.replace(/\/$/,""):"";</script>
+<script>
+/* Netlify「Powered by Netlify」標籤：只有標籤真的出現在畫面上時，底部選單才往上移；在設定關掉或按「Hide this badge」後自動恢復 */
+(function(){var H=document.documentElement,mode="auto";try{mode=localStorage.getItem("ll-nfb")||"auto"}catch(e){}
+  function isBadge(el){if(!el||el===document.body||el===document.head||!el.getBoundingClientRect)return false;var t=el.tagName;
+    if(!(el.id==="nl-badge-frame"||t==="IFRAME"||t.indexOf("-")>0||el.shadowRoot||/netlify/i.test((el.id||"")+" "+(el.className||""))))return false;
+    var cs=getComputedStyle(el);if(cs.position!=="fixed"||cs.display==="none"||cs.visibility==="hidden"||+cs.opacity===0)return false;
+    var r=el.getBoundingClientRect();if(r.width>20&&r.height>10&&r.bottom>innerHeight-160&&r.left>innerWidth*0.35){H.style.setProperty("--nfbh",Math.max(40,Math.min(90,Math.round(innerHeight-r.top)-8))+"px");return true;}return false;}
+  var watched=null;
+  function check(){var els=[].slice.call(document.body?document.body.children:[]).concat([].slice.call(H.children));
+    var f=document.getElementById("nl-badge-frame");if(f&&f!==watched&&window.ResizeObserver){watched=f;try{new ResizeObserver(check).observe(f)}catch(e){}}
+    var on=mode==="on"||(mode==="auto"&&els.some(isBadge));if(mode==="on"&&!H.style.getPropertyValue("--nfbh"))H.style.setProperty("--nfbh","56px");H.classList.toggle("nfbadge",on);}
+  window.llBadgeMode=function(m){mode=m;try{localStorage.setItem("ll-nfb",m)}catch(e){}check();};
+  window.llBadgeModeGet=function(){return mode};
+  document.addEventListener("DOMContentLoaded",function(){check();var n=0,iv=setInterval(function(){check();if(++n>15)clearInterval(iv)},1000);
+    try{new MutationObserver(check).observe(document.body,{childList:true});new MutationObserver(check).observe(H,{childList:true});}catch(e){}
+    addEventListener("resize",check);document.addEventListener("click",function(){setTimeout(check,400)},true);});
+})();
+</script>
+<style>[hidden]{display:none!important}.incf{display:grid;grid-template-columns:minmax(0,1fr) minmax(0,1fr);gap:8px}.incf .btn{grid-column:1/-1}
+@media(min-width:560px){.incf{grid-template-columns:110px 130px 140px minmax(0,1fr) auto}.incf .btn{grid-column:auto}}
+#fgBox:not([hidden]){display:flex}
+</style>
+<style>
+/* Layout: one narrow column, phone first — summary slip on top, entry form, then breakdown, ledger, settings */
+:root{
+  --bg:#EEF1F4; --surface:#FFFFFF; --surface2:#F6F8FA; --line:#DDE3EA;
+  --ink:#121821; --ink2:#465061; --muted:#7B8494;
+  --navy:#0E2035; --navy2:#17304D; --on-navy:#F3F6FA; --on-navy2:#A9B8CB;
+  --gold:#C9A45C; --gold-ink:#8A6A2C;
+  --ok:#17784B; --warn:#B7791F; --bad:#B3372B;
+  --chip:#E9EDF2; --focus:#2A78D6;
+  --display:"Noto Serif TC","Songti TC",serif;
+  --body:"Noto Sans TC","PingFang TC","Microsoft JhengHei",system-ui,sans-serif;
+  --num:"IBM Plex Mono",ui-monospace,"SFMono-Regular",Consolas,monospace;
+}
+@media (prefers-color-scheme: dark){:root:not([data-theme="light"]){
+  --bg:#0B121C; --surface:#121C29; --surface2:#162232; --line:#24324A;
+  --ink:#E8EDF3; --ink2:#B4C0CF; --muted:#8392A6;
+  --navy:#16283F; --navy2:#1E3554; --on-navy:#F3F6FA; --on-navy2:#A9B8CB;
+  --gold:#D6B573; --gold-ink:#D6B573;
+  --ok:#3FB37C; --warn:#E0A43A; --bad:#E06A5C;
+  --chip:#1C2A3D; --focus:#6AA6F0; color-scheme:dark}}
+:root[data-theme="dark"]{
+  --bg:#0B121C; --surface:#121C29; --surface2:#162232; --line:#24324A;
+  --ink:#E8EDF3; --ink2:#B4C0CF; --muted:#8392A6;
+  --navy:#16283F; --navy2:#1E3554; --on-navy:#F3F6FA; --on-navy2:#A9B8CB;
+  --gold:#D6B573; --gold-ink:#D6B573;
+  --ok:#3FB37C; --warn:#E0A43A; --bad:#E06A5C;
+  --chip:#1C2A3D; --focus:#6AA6F0; color-scheme:dark}
+*{box-sizing:border-box}
+body{background:var(--bg);color:var(--ink);font-family:var(--body);font-size:15px;line-height:1.55;padding:0 16px;-webkit-font-smoothing:antialiased}
+.wrap{max-width:680px;margin:0 auto;padding-block:18px 56px;display:flex;flex-direction:column;gap:16px}
+button,input,select{font:inherit;color:inherit}
+:focus-visible{outline:2px solid var(--focus);outline-offset:2px}
+.num{font-family:var(--num);font-variant-numeric:tabular-nums}
+.top{display:flex;align-items:center;justify-content:space-between;gap:8px;flex-wrap:nowrap}
+.top .brand{margin-right:auto}
+.topr{display:flex;align-items:center;gap:6px;margin-left:auto;flex:none}
+.brand small{white-space:nowrap}
+.sharebtn{display:inline-flex;align-items:center;justify-content:center;width:36px;height:36px;border:1px solid var(--line);background:var(--surface);color:var(--ink);border-radius:50%;cursor:pointer;flex:none}
+.sharebtn:active{transform:scale(.97)}
+.brand{display:flex;flex-direction:column}
+.brand small{font-size:10.5px;letter-spacing:.18em;color:var(--gold-ink);font-weight:700}
+.brand b{font-family:var(--display);font-size:22px;font-weight:900;letter-spacing:.02em}
+.mon{display:flex;align-items:center;gap:4px;background:var(--surface);border:1px solid var(--line);border-radius:999px;padding:3px}
+.mon button{border:0;background:transparent;width:34px;height:34px;border-radius:999px;cursor:pointer;font-size:16px;color:var(--ink2)}
+.mon button:hover{background:var(--chip)}
+.mon span{min-width:104px;text-align:center;font-weight:700;font-size:14px}
+.banner{background:var(--surface);border:1px solid var(--line);border-left:4px solid var(--warn);padding:10px 14px;border-radius:8px;font-size:13.5px;color:var(--ink2)}
+
+/* summary slip */
+.slip{background:var(--navy);color:var(--on-navy);border-radius:14px;padding:20px 20px 16px;display:flex;flex-direction:column;gap:14px;position:relative;overflow:hidden}
+.slip::after{content:"";position:absolute;inset:auto -40px -60px auto;width:180px;height:180px;border-radius:50%;border:26px solid rgba(201,164,92,.10)}
+.slip .lab{font-size:12px;color:var(--on-navy2);letter-spacing:.06em}
+.slip .big{font-family:var(--num);font-size:clamp(30px,8vw,40px);font-weight:600;line-height:1.1;font-variant-numeric:tabular-nums}
+.slip .big em{font-style:normal;font-size:.5em;color:var(--on-navy2);margin-right:6px}
+.slip-head{display:flex;justify-content:space-between;align-items:flex-start;gap:12px;flex-wrap:wrap}
+.pill{font-size:12px;font-weight:700;padding:3px 10px;border-radius:999px;background:rgba(255,255,255,.1);white-space:nowrap}
+.pill.ok{color:#7FE0AE}.pill.warn{color:#F3C26B}.pill.bad{color:#FF9C8F}
+.bar{position:relative;height:10px;border-radius:999px;background:rgba(255,255,255,.12);overflow:visible}
+.bar i{position:absolute;inset:0 auto 0 0;border-radius:999px;background:var(--gold);transition:width .4s ease}
+.bar i.over{background:#E06A5C}
+.bar b{position:absolute;top:-4px;width:2px;height:18px;background:var(--on-navy);opacity:.7;border-radius:2px}
+.bar-legend{display:flex;justify-content:space-between;font-size:11.5px;color:var(--on-navy2)}
+.stats{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:10px;border-top:1px solid rgba(255,255,255,.12);padding-top:12px}
+.stats div{min-width:0}
+.stats .v{font-family:var(--num);font-size:16px;font-weight:600;font-variant-numeric:tabular-nums;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.stats .k{font-size:11.5px;color:var(--on-navy2)}
+.setbudget{display:flex;gap:8px;flex-wrap:wrap;align-items:center}
+.setbudget input{background:rgba(255,255,255,.08);border:1px solid rgba(255,255,255,.2);color:var(--on-navy);border-radius:8px;padding:8px 10px;width:150px}
+.setbudget button{background:var(--gold);color:#1B1408;border:0;border-radius:8px;padding:8px 14px;font-weight:700;cursor:pointer}
+
+/* panels */
+.panel{background:var(--surface);border:1px solid var(--line);border-radius:12px;padding:16px;display:flex;flex-direction:column;gap:12px;min-width:0}
+.panel h2{margin:0;font-size:15px;font-weight:700;display:flex;justify-content:space-between;align-items:baseline;gap:8px}
+.panel h2 small{font-size:12px;color:var(--muted);font-weight:400}
+.field{display:flex;flex-direction:column;gap:6px}
+.field>label,.flabel{font-size:12px;color:var(--muted);font-weight:500}
+.amt{display:flex;align-items:center;gap:8px;border-bottom:2px solid var(--ink);padding-bottom:4px}
+.amt span{font-family:var(--num);color:var(--muted);font-size:18px}
+.amt input{border:0;background:transparent;font-family:var(--num);font-size:30px;font-weight:600;width:100%;min-width:0;padding:2px 0;outline:none}
+.amt:focus-within{border-color:var(--focus)}
+.hint{font-size:11.5px;color:var(--muted)}
+.chips{display:flex;flex-wrap:wrap;gap:6px}
+.chip{border:1px solid var(--line);background:var(--surface);border-radius:999px;padding:6px 12px;font-size:13px;cursor:pointer;display:inline-flex;align-items:center;gap:6px;line-height:1.2}
+.chip:hover{background:var(--surface2)}
+.chip[aria-pressed="true"]{background:var(--ink);color:var(--surface);border-color:var(--ink)}
+.chip .dot{width:9px;height:9px;border-radius:50%;flex:none}
+.row2{display:grid;grid-template-columns:minmax(0,1fr) minmax(0,1.6fr);gap:10px}
+.inp{border:1px solid var(--line);background:var(--surface2);border-radius:8px;padding:9px 10px;width:100%;min-width:0}
+.actions{display:flex;gap:8px;align-items:center;flex-wrap:wrap}
+.btn{border:0;border-radius:10px;padding:12px 18px;font-weight:700;cursor:pointer;background:var(--navy);color:var(--on-navy)}
+.btn.primary{flex:1;min-width:160px;font-size:16px}
+.btn.ghost{background:transparent;color:var(--ink2);border:1px solid var(--line);padding:11px 14px}
+.btn:disabled{opacity:.45;cursor:not-allowed}
+.toast{font-size:13px;color:var(--ok);min-height:1em}
+.toast.err{color:var(--bad)}
+
+/* bank badge */
+.bb{display:inline-block;color:#fff;font-size:11px;font-weight:700;padding:2px 7px;border-radius:4px;white-space:nowrap;line-height:1.5}
+
+/* breakdown */
+.tabs{display:flex;gap:4px;background:var(--chip);border-radius:8px;padding:3px;align-self:flex-start}
+.tabs button{border:0;background:transparent;padding:5px 12px;border-radius:6px;font-size:13px;cursor:pointer;color:var(--ink2)}
+.tabs button[aria-selected="true"]{background:var(--surface);color:var(--ink);font-weight:700;box-shadow:0 1px 2px rgba(0,0,0,.08)}
+.brk{display:flex;flex-direction:column;gap:10px}
+.brow{display:grid;grid-template-columns:minmax(0,1fr) auto;gap:4px 10px;align-items:center}
+.brow .n{display:flex;gap:6px;align-items:center;min-width:0;font-size:13.5px}
+.brow .n span{overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.brow .v{font-family:var(--num);font-size:13.5px;font-variant-numeric:tabular-nums;text-align:right}
+.brow .v small{color:var(--muted);margin-left:6px}
+.brow .t{grid-column:1/-1;height:6px;background:var(--chip);border-radius:999px;overflow:hidden}
+.brow .t i{display:block;height:100%;border-radius:999px}
+
+/* ledger */
+.day{display:flex;flex-direction:column}
+.dayh{display:flex;justify-content:space-between;font-size:12px;color:var(--muted);padding:8px 0 4px;border-bottom:1px solid var(--line)}
+.item{display:grid;grid-template-columns:minmax(0,1fr) auto;gap:2px 10px;padding:10px 0;border-bottom:1px solid var(--line);align-items:center}
+.item .what{font-size:14px;font-weight:500;min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.item .meta{font-size:12px;color:var(--muted);display:flex;gap:6px;align-items:center;flex-wrap:wrap;min-width:0}
+.item .amt2{font-family:var(--num);font-weight:600;font-size:15px;text-align:right;font-variant-numeric:tabular-nums}
+.item .ops{display:flex;gap:4px;justify-content:flex-end}
+.item .ops button{border:0;background:transparent;color:var(--muted);font-size:12px;cursor:pointer;padding:2px 6px;border-radius:4px}
+.item .ops button:hover{background:var(--chip);color:var(--ink)}
+.item .ops button.arm{background:var(--bad);color:#fff}
+.empty{color:var(--muted);font-size:13.5px;padding:18px 0;text-align:center;border:1px dashed var(--line);border-radius:10px}
+
+/* settings */
+details.panel summary{cursor:pointer;font-weight:700;font-size:15px;list-style:none;display:flex;justify-content:space-between}
+details.panel summary::after{content:"＋";color:var(--muted)}
+details.panel[open] summary::after{content:"－"}
+.cardlist{display:flex;flex-direction:column;gap:6px}
+.crow{display:flex;align-items:center;gap:8px;justify-content:space-between;padding:6px 0;border-bottom:1px solid var(--line);font-size:13.5px}
+.crow .l{display:flex;gap:8px;align-items:center;min-width:0}
+.crow .l span{overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.crow button{border:1px solid var(--line);background:transparent;border-radius:6px;font-size:12px;padding:3px 8px;cursor:pointer;color:var(--ink2);flex:none}
+.crow button.arm{background:var(--bad);border-color:var(--bad);color:#fff}
+.addcard{display:grid;grid-template-columns:110px minmax(0,1fr) auto;gap:8px}
+.foot{font-size:11.5px;color:var(--muted);text-align:center}
+@media (max-width:460px){.row2{grid-template-columns:1fr}.addcard{grid-template-columns:1fr 1fr}.addcard button{grid-column:1/-1}.stats .v{font-size:14.5px}}
+@media (prefers-reduced-motion:reduce){*{transition:none!important}}
+</style><style>
+/* extra: card-cap meters */
+.caps{display:flex;flex-direction:column;gap:12px}
+.cap{display:grid;grid-template-columns:minmax(0,1fr) auto;gap:4px 10px;padding-bottom:12px;border-bottom:1px solid var(--line)}
+.cap:last-child{border-bottom:0;padding-bottom:0}
+.cap .n{display:flex;gap:6px;align-items:center;min-width:0;font-size:14px;font-weight:500}
+.cap .n span{overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.cap .v{font-family:var(--num);font-size:13.5px;text-align:right;white-space:nowrap}
+.cap .v small{color:var(--muted)}
+.cap .t{grid-column:1/-1;height:8px;background:var(--chip);border-radius:999px;overflow:hidden}
+.cap .t i{display:block;height:100%;border-radius:999px;background:var(--ok)}
+.cap .t i.warn{background:var(--warn)} .cap .t i.bad{background:var(--bad)}
+.cap .s{grid-column:1/-1;display:flex;justify-content:space-between;gap:8px;flex-wrap:wrap;font-size:11.5px;color:var(--muted)}
+.cap .s b{font-weight:700}
+.cap .s b.ok{color:var(--ok)} .cap .s b.warn{color:var(--warn)} .cap .s b.bad{color:var(--bad)}
+.cap.nocap .t{display:none}
+.cardhint{font-size:12.5px;padding:8px 10px;border-radius:8px;background:var(--surface2);color:var(--ink2)}
+.cardhint b.ok{color:var(--ok)} .cardhint b.warn{color:var(--warn)} .cardhint b.bad{color:var(--bad)}
+.loading{opacity:.55;pointer-events:none}
+a.lnk{color:var(--focus)}
+.mon span{font-size:13px;white-space:nowrap;min-width:88px}
+.topr{gap:4px}.sharebtn{width:34px;height:34px}.mon button{width:30px;height:32px}
+@media (max-width:400px){.mon{gap:2px}.mon span{font-size:12px;min-width:0}.mon button{width:26px;padding:0!important}.sharebtn{width:32px;height:32px}.brand small{font-size:8.5px;letter-spacing:.06em}.brand b{font-size:19px}}
+</style>
+</head>
+<body>
+<style>
+.bb{flex:none}
+.sync{font-size:11.5px;color:var(--muted);display:flex;justify-content:space-between;gap:8px;flex-wrap:wrap;align-items:center}
+.ibtn{border:1px solid var(--line);background:var(--surface);border-radius:999px;padding:7px 12px;font-size:12.5px;cursor:pointer;color:var(--ink2)}
+.ibtn:hover{background:var(--surface2)}
+.cgrid{display:flex;flex-direction:column;gap:10px}
+.cedit{display:grid;grid-template-columns:84px minmax(0,1fr) auto;gap:6px 8px;padding:10px;border:1px solid var(--line);border-radius:10px;background:var(--surface2)}
+.cedit .full{grid-column:1/-1}
+.cedit .row3{grid-column:1/-1;display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:6px}
+.cedit label{font-size:11px;color:var(--muted);display:flex;flex-direction:column;gap:3px}
+.cedit .inp{padding:7px 8px;font-size:13.5px;background:var(--surface)}
+.cedit .del{border:1px solid var(--line);background:transparent;border-radius:6px;font-size:12px;padding:3px 8px;cursor:pointer;color:var(--ink2);align-self:end;height:34px}
+.cedit .del.arm{background:var(--bad);border-color:var(--bad);color:#fff}
+.backup{display:flex;gap:8px;flex-wrap:wrap}
+.gate{background:var(--surface);border:1px solid var(--line);border-radius:14px;padding:24px 20px;display:flex;flex-direction:column;gap:12px;align-items:flex-start}
+.gate h1{margin:0;font-family:var(--display);font-size:22px}
+.gate p{margin:0;color:var(--ink2);font-size:13.5px;max-width:52ch}
+.dotst{display:inline-block;width:7px;height:7px;border-radius:50%;background:var(--ok);margin-right:6px;vertical-align:1px}
+.dotst.off{background:var(--warn)}
+.vtabs{position:sticky;top:env(safe-area-inset-top,0px);z-index:5;display:grid;grid-template-columns:repeat(3,1fr);gap:4px;background:var(--chip);border-radius:12px;padding:4px;box-shadow:0 2px 8px rgba(14,32,53,.08)}
+.vtabs button{border:0;background:transparent;border-radius:9px;padding:10px 6px;font-size:14px;font-weight:500;color:var(--ink2);cursor:pointer;display:flex;align-items:center;justify-content:center;gap:6px}
+.vtabs button[aria-selected="true"]{background:var(--surface);color:var(--ink);font-weight:700;box-shadow:0 1px 3px rgba(0,0,0,.1)}
+.vc{font-family:var(--num);font-size:11px;background:var(--line);color:var(--ink2);border-radius:999px;padding:0 7px;line-height:18px}
+.vc:empty{display:none}
+.vc.warn{background:var(--warn);color:#fff} .vc.bad{background:var(--bad);color:#fff}
+.amtcalc{font-family:var(--num);font-size:13px;color:var(--ok);min-height:1.2em}
+.vtabs{grid-template-columns:repeat(6,1fr)!important}
+.vtabs button{font-size:13px;padding-left:2px;padding-right:2px;white-space:nowrap}
+.mode{display:flex;border-bottom:1px solid var(--line);margin:-4px 0 14px}
+.mbtn{flex:1;border:0;border-bottom:3px solid transparent;background:transparent;padding:10px 0 9px;font:inherit;font-size:16px;font-weight:700;color:var(--ink2,#8a94a3);cursor:pointer;margin-bottom:-1px}
+.mbtn[aria-pressed="true"]{color:var(--ink);border-bottom-color:var(--ink)}
+#incEntry .mbtn[data-mode="inc"][aria-pressed="true"]{color:#0a8f5a;border-bottom-color:#0a8f5a}
+#incEntry .chip[aria-pressed="true"]{background:#0a8f5a;border-color:#0a8f5a;color:#fff}
+.incbtn{background:#0a8f5a!important;border-color:#0a8f5a!important}
+.vtabs button{white-space:nowrap;min-width:0}
+.h2r{display:flex;gap:8px;align-items:center}
+.tripbox{display:flex;flex-direction:column;gap:8px;padding:10px 12px;border-radius:10px;background:var(--surface2);border:1px solid var(--line)}
+.tripline{display:flex;align-items:center;gap:10px;flex-wrap:wrap}
+.tripline .inp{flex:1;min-width:140px}
+.chk{display:flex;gap:8px;align-items:center;font-size:13px;color:var(--ink2)}
+.chk input{width:18px;height:18px}
+.tkpi{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:8px}
+.tkpi>div{background:var(--surface2);border:1px solid var(--line);border-radius:10px;padding:10px 12px;min-width:0}
+.tkpi .k{font-size:11.5px;color:var(--muted)} .tkpi .v{font-size:18px;font-weight:600;font-variant-numeric:tabular-nums}
+.exrow{display:flex;gap:8px;flex-wrap:wrap;align-items:center}
+.exrow .inp{width:auto;min-width:0;flex:1 1 140px}
+.tripadd{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:8px;align-items:end}
+.tripadd>input{grid-column:1/-1}
+.tripadd label{display:flex;flex-direction:column;gap:4px}
+.tripadd .btn{grid-column:1/-1}
+@media (max-width:460px){.tripadd{grid-template-columns:1fr 1fr}.vtabs button{font-size:12.5px;padding:9px 2px;gap:3px}.vtabs .vc{padding:0 5px}}
+.sheetbg{position:fixed;inset:0;z-index:20;background:rgba(10,18,28,.45);display:flex;align-items:flex-end;justify-content:center;padding:16px;padding-bottom:calc(16px + env(safe-area-inset-bottom,0px))}
+.sheet{background:var(--surface);border-radius:16px;padding:18px;width:100%;max-width:560px;max-height:88vh;overflow:auto;display:flex;flex-direction:column;gap:14px;box-shadow:0 10px 40px rgba(0,0,0,.25)}
+@media (min-width:700px){.sheetbg{align-items:center}}
+.sheet h2{display:flex;justify-content:space-between;align-items:center;margin:0;font-size:18px}
+.checks{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:8px 12px}
+.exsum{font-size:13px;color:var(--ink2);background:var(--surface2);border-radius:8px;padding:8px 10px}
+.exp{font-size:11px;font-family:var(--num);color:var(--muted);white-space:nowrap}
+.exp.soon{color:var(--warn);font-weight:700} .exp.gone{color:var(--bad);font-weight:700}
+.tbud{display:flex;flex-direction:column;gap:6px;padding:10px 12px;border:1px solid var(--line);border-radius:10px}
+.fxbox{display:flex;flex-direction:column;gap:8px;padding:10px 12px;border:1px solid var(--line);border-radius:10px;background:var(--surface2)}
+.fxrow{display:flex;gap:6px;align-items:center;flex-wrap:wrap}
+.fxrow b{font-family:var(--num);min-width:42px}
+.fxrow .inp{flex:1 1 90px;min-width:0;width:auto}
+.vcard{background:linear-gradient(135deg,var(--navy),var(--navy2));color:var(--on-navy);border-radius:14px;padding:18px;display:flex;flex-direction:column;gap:10px}
+.vlab{font-size:11px;color:var(--on-navy2);letter-spacing:.06em}
+.vpan{font-size:20px;letter-spacing:.08em}
+.vgrid{display:grid;grid-template-columns:1fr 1fr;gap:8px}
+.vval{font-size:16px}
+.vrow{display:flex;flex-direction:column;gap:6px;padding:10px;border:1px solid var(--line);border-radius:10px;background:var(--surface2)}
+.vrow .l{display:flex;gap:8px;align-items:center;font-size:13.5px}
+.vrow .exrow .inp{flex:1 1 80px}
+.vbtn{border:1px solid var(--gold);background:var(--surface);border-radius:6px;font-size:11.5px;font-weight:600;padding:2px 8px;cursor:pointer;color:var(--gold);margin-left:6px;white-space:nowrap}
+.rb{color:var(--ok);font-weight:600}
+.rbsum{display:flex;flex-direction:column;gap:2px;padding:10px 12px;border-radius:10px;background:var(--surface2);border:1px solid var(--line)}
+.rbsum b{color:var(--ok);font-size:15px}
+.srch{position:relative}
+.srch input{width:100%;border:1px solid var(--line);background:var(--surface2);border-radius:999px;padding:8px 12px 8px 32px;font-size:13.5px}
+.srch::before{content:"⌕";position:absolute;left:12px;top:50%;transform:translateY(-52%);color:var(--muted);font-size:15px}
+.more{border:0;background:transparent;color:var(--focus);font-size:13px;cursor:pointer;padding:4px 0;align-self:flex-start}
+.pcard{border:1px solid var(--line);border-radius:10px;background:var(--surface)}
+.pcard>summary{list-style:none;cursor:pointer;display:flex;align-items:center;gap:8px;padding:10px 12px;font-size:13.5px}
+.pcard>summary::-webkit-details-marker{display:none}
+.pcard>summary .nm{flex:1;min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;font-weight:500}
+.pcard>summary .mt{font-family:var(--num);font-size:12px;color:var(--muted);white-space:nowrap}
+.pcard>summary::after{content:"›";color:var(--muted);transition:transform .15s}
+.pcard[open]>summary::after{transform:rotate(90deg)}
+.pcard .cedit{border:0;border-top:1px solid var(--line);border-radius:0 0 10px 10px}
+.pklock{display:flex;gap:8px;margin-bottom:12px}.pklock .inp{flex:1}
+.pklist{display:flex;flex-direction:column;gap:10px}
+.pkrow{display:flex;align-items:center;gap:12px;padding:14px;border-radius:14px;background:linear-gradient(135deg,var(--navy),var(--navy2));color:var(--on-navy)}
+.pkrow.none{opacity:.55}
+.pkb{flex:1;min-width:0;display:flex;flex-direction:column;gap:6px}
+.pkt{display:flex;gap:8px;align-items:center;font-size:13.5px;font-weight:600}.pkt span:last-child{overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.pknum{font-size:20px;letter-spacing:2px;white-space:nowrap}
+.pkmeta{font-size:12px;color:#c7d2df}
+.pkside{display:flex;flex-direction:column;gap:6px;align-items:stretch}
+.pkside .ibtn{background:transparent;color:#F3F6FA;border-color:rgba(255,255,255,.35)}
+.pkcopy{display:flex;align-items:center;justify-content:center;gap:6px;min-width:112px;white-space:nowrap;padding:12px 14px;border:0;border-radius:12px;background:var(--gold,#C9A45C);color:#0E2035;font-weight:700;font-size:14px;cursor:pointer}
+.pkcopy:disabled{background:rgba(255,255,255,.15);color:#c7d2df;cursor:default;font-weight:500}
+.pkcopy.done{background:#2fae6b;color:#fff}
+.updlist{display:flex;flex-direction:column;gap:8px}
+.updrow{display:flex;gap:10px;align-items:flex-start;padding:10px;border:1px solid var(--line);border-radius:10px;background:var(--surface2);cursor:pointer}
+.updrow input{margin-top:4px;width:18px;height:18px;flex:none}
+.updrow .n{display:flex;gap:6px;align-items:center;flex-wrap:wrap;font-size:13.5px}
+.updrow .nw{color:var(--ok);font-weight:600}
+.vimp{border:1px dashed var(--line);border-radius:10px;padding:8px 10px}
+.vimp summary{cursor:pointer;font-size:13px;font-weight:600}
+.vta{width:100%;min-height:84px;font-family:var(--num);font-size:13px;margin:6px 0;-webkit-text-security:disc}
+.vres{display:flex;flex-direction:column;gap:6px;margin-top:6px}
+.vrow.filled{outline:2px solid var(--ok);outline-offset:2px;border-radius:8px}
+.pcard.pool{margin-left:18px;border-left:3px solid var(--gold)}
+.pooltag{font-size:10.5px;font-weight:700;color:var(--gold);border:1px solid var(--gold);border-radius:4px;padding:0 5px;white-space:nowrap}
+.splitbox{display:flex;flex-direction:column;gap:8px;border-top:1px dashed var(--line);padding-top:10px}
+.upd{font-size:10.5px;font-weight:700;color:#fff;background:var(--warn);border-radius:4px;padding:1px 6px;white-space:nowrap}
+.dbinfo{grid-column:1/-1;font-size:12px;color:var(--ink2);background:var(--surface);border:1px dashed var(--line);border-radius:8px;padding:8px 10px;display:flex;flex-direction:column;gap:4px}
+.dbinfo a{color:var(--focus)}
+.conf{font-size:10.5px;border-radius:4px;padding:0 5px;border:1px solid var(--line)}
+.conf.high{color:var(--ok);border-color:var(--ok)} .conf.medium{color:var(--warn);border-color:var(--warn)} .conf.low{color:var(--bad);border-color:var(--bad)}
+.picker{display:flex;flex-direction:column;gap:8px;border:1px solid var(--line);border-radius:12px;padding:12px;background:var(--surface2)}
+.pitem{display:grid;grid-template-columns:minmax(0,1fr) auto;gap:4px 10px;padding:10px;border-radius:8px;background:var(--surface);border:1px solid var(--line)}
+.pitem .t1{display:flex;gap:6px;align-items:center;min-width:0;font-weight:500;font-size:13.5px}
+.pitem .t2{grid-column:1/-1;font-size:12px;color:var(--ink2)}
+.pitem .t3{grid-column:1/-1;font-size:11px;color:var(--muted);display:flex;gap:8px;flex-wrap:wrap;align-items:center}
+.pitem .t3 a{color:var(--focus)}
+.pitem button{border:0;background:var(--navy);color:var(--on-navy);border-radius:8px;padding:6px 12px;font-size:12.5px;font-weight:700;cursor:pointer;align-self:center}
+.pitem button:disabled{opacity:.4;cursor:default}
+details.sec>summary{list-style:none;cursor:pointer}
+details.sec>summary::-webkit-details-marker{display:none}
+details.sec>summary h2::after{content:"";}
+details.sec>summary h2 .tg{font-size:12px;color:var(--muted);font-weight:400;margin-left:6px}
+.warnbox{font-size:12.5px;color:var(--ink2);background:var(--surface2);border-left:3px solid var(--warn);padding:8px 10px;border-radius:6px}
+/* 底部分頁：記帳／明細／分析／卡片／設定，不用一直往下捲 */
+body{padding-bottom:calc(76px + env(safe-area-inset-bottom))}
+.bnav{position:fixed;left:0;right:0;bottom:0;z-index:30;display:grid;grid-template-columns:repeat(5,1fr);background:var(--surface);border-top:1px solid var(--line);padding:6px max(8px,env(safe-area-inset-left)) calc(6px + env(safe-area-inset-bottom));box-shadow:0 -6px 18px rgba(14,32,53,.06)}
+.bnav button{border:0;background:none;color:var(--muted);display:flex;flex-direction:column;align-items:center;gap:2px;font:500 11.5px/1.2 var(--body);padding:6px 0;cursor:pointer;border-radius:10px}
+.bnav svg{width:22px;height:22px;fill:none;stroke:currentColor;stroke-width:2;stroke-linecap:round;stroke-linejoin:round}
+.bnav button[aria-current="page"]{color:var(--navy);font-weight:700}.bnav button[aria-current="page"] svg{stroke-width:2.4}
+@media (prefers-color-scheme: dark){:root:not([data-theme="light"]) .bnav button[aria-current="page"]{color:var(--gold)}}
+:root[data-theme="dark"] .bnav button[aria-current="page"]{color:var(--gold)}
+@media (min-width:720px){.bnav{left:50%;right:auto;transform:translateX(-50%);width:min(560px,100%);bottom:12px;border:1px solid var(--line);border-radius:16px;padding:6px}}
+.page{display:flex;flex-direction:column;gap:14px}
+.cardbar{display:flex;flex-wrap:wrap;gap:8px;position:sticky;top:0;z-index:5;background:var(--surface);padding:6px 0 8px;margin-bottom:4px}
+.cardbar #cardsSave{margin-left:auto}
+.lgtools{display:grid;grid-template-columns:minmax(0,1fr) auto auto;gap:8px;align-items:center;margin-bottom:6px}.lgtools .srch{margin:0}
+.lgtools select{padding:7px 8px;font-size:13px;max-width:9.5em}
+.pcard summary .ord{display:inline-flex;gap:2px;margin-left:auto}.pcard summary .ord button,.pcard summary .fav{border:1px solid var(--line);background:var(--surface);color:var(--ink2);border-radius:6px;width:28px;height:26px;font-size:13px;line-height:1;cursor:pointer;padding:0}
+.pcard summary .fav{color:var(--muted);font-size:15px}.pcard summary .fav[aria-pressed="true"]{color:var(--gold);border-color:var(--gold)}
+.pcard summary .mt{margin-left:6px}
+#settings>summary{display:none}
+@media (max-width:520px){.pcard summary .mt{display:none}.pcard summary .nm{min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;flex:1}}
+#entry .actions,#incEntry .incbtn{position:sticky;bottom:calc(70px + env(safe-area-inset-bottom));z-index:4}
+#entry .actions{background:linear-gradient(to top,var(--surface) 75%,transparent);padding-top:10px;margin-top:4px}
+@media (min-width:720px){#entry .actions,#incEntry .incbtn{bottom:84px}}
+.pcard summary .grip{display:inline-grid;place-items:center;width:30px;height:28px;border-radius:6px;color:var(--muted);font-size:14px;letter-spacing:-2px;cursor:grab;touch-action:none;user-select:none;-webkit-user-select:none}
+.pcard.dragging{opacity:.85;box-shadow:0 10px 24px rgba(14,32,53,.22);border-color:var(--gold);transform:scale(1.01)}
+body.nosel{user-select:none;-webkit-user-select:none}
+.pcard .fold{display:block;margin:10px 0 0 auto;font:inherit;font-size:13px;border:1px solid var(--line);background:var(--surface2);color:var(--ink2);border-radius:8px;padding:5px 14px;cursor:pointer}
+.remind{display:flex;align-items:center;gap:10px;justify-content:space-between;background:color-mix(in srgb,var(--gold) 16%,var(--surface));border:1px solid color-mix(in srgb,var(--gold) 55%,transparent);border-radius:12px;padding:10px 12px;font-size:13.5px}
+.remind .btn{flex:none;padding:6px 12px}
+.rlinks{display:grid;grid-template-columns:1fr 1fr;gap:10px;order:-1}.rl{display:flex;flex-direction:column;gap:2px;padding:12px 14px;border:1px solid var(--line);border-radius:12px;background:var(--surface);text-decoration:none;color:var(--ink)}.rl span{font-size:12px;color:var(--muted)}
+.deptop{display:flex;flex-wrap:wrap;gap:10px;align-items:center;margin:6px 0}.deptop label{display:flex;gap:6px;align-items:center;font-size:13px}
+.deplist{display:flex;flex-direction:column;gap:6px}.deprow{display:grid;grid-template-columns:7em 1fr;gap:8px;align-items:center;font-size:13.5px}.deprow small{grid-column:2;color:var(--muted);font-size:11.5px;margin-top:-4px}
+.depbanks summary{cursor:pointer;font-size:13px;color:var(--ink2);margin:6px 0}
+.cardbar2{display:flex;justify-content:flex-end;margin:-4px 0 6px}
+/* Netlify 免費方案右下角的「Powered by Netlify」標籤：把底部分頁往上浮，不被擋到 */
+html.nfbadge body{padding-bottom:calc(76px + var(--nfbh,52px) + env(safe-area-inset-bottom))}
+html.nfbadge .bnav{left:10px;right:10px;bottom:calc(var(--nfbh,52px) + env(safe-area-inset-bottom));border:1px solid var(--line);border-radius:16px;padding:6px}
+html.nfbadge #entry .actions,html.nfbadge #incEntry .incbtn{bottom:calc(70px + var(--nfbh,52px) + env(safe-area-inset-bottom))}
+@media (min-width:720px){html.nfbadge .bnav{left:50%;right:auto;bottom:var(--nfbh,56px)}}
+.linkb{border:0;background:none;color:var(--ink2);font:inherit;font-size:13px;text-decoration:underline;cursor:pointer;padding:4px 0;align-self:flex-start}
+#recShow b{font:700 18px/1.4 ui-monospace,Consolas,monospace;letter-spacing:.08em;color:var(--ink)}
+#cardsSave.dirty{box-shadow:0 0 0 3px color-mix(in srgb,var(--gold) 55%,transparent)}#cardsSave.dirty::after{content:" ●";color:var(--gold)}
+</style>
+
+<div class="wrap" id="app">
+  <header class="top">
+    <div class="brand"><small>LIFELEDGER · 生活總帳</small><b>隨手記</b></div>
+    <div class="topr">
+    <button type="button" class="sharebtn" id="themeApp" aria-label="切換深淺色" title="深淺色：自動 → 淺色 → 深色"><svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true"><circle cx="12" cy="12" r="8"/><path d="M12 4a8 8 0 0 0 0 16z" fill="currentColor"/></svg></button>
+    <button type="button" class="sharebtn" id="shareApp" aria-label="分享隨手記給朋友" title="分享隨手記給朋友（只分享網址，不含你的資料）"><svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="18" cy="5" r="3"/><circle cx="6" cy="12" r="3"/><circle cx="18" cy="19" r="3"/><path d="M8.6 13.5l6.8 4M15.4 6.5l-6.8 4"/></svg></button>
+    <nav class="mon" aria-label="切換月份">
+      <button id="prevM" aria-label="上個月">‹</button>
+      <span id="monLabel" class="num">—</span>
+      <button id="nextM" aria-label="下個月">›</button>
+    </nav>
+    </div>
+  </header>
+
+  <div id="banner" class="banner" hidden></div>
+
+  <section class="gate" id="gate" hidden>
+    <h1 id="gTitle">登入隨手記</h1>
+    <p id="gDesc">用你的帳號登入，手機、電腦看到的會是同一份記錄。每個帳號的記帳都是分開的，別人看不到。</p>
+    <div class="tabs" role="tablist">
+      <button role="tab" id="tLogin" aria-selected="true" type="button">登入</button>
+      <button role="tab" id="tReg" aria-selected="false" type="button">建立帳號</button>
+    </div>
+    <label class="flabel" for="uName">帳號（自己取，例如英文名字或 email）</label>
+    <input id="uName" class="inp" autocomplete="username" style="max-width:320px" maxlength="40">
+    <label class="flabel" for="pw">密碼（至少 6 個字）</label>
+    <input id="pw" type="password" class="inp" autocomplete="current-password" style="max-width:320px">
+    <div id="invWrap" hidden style="display:flex;flex-direction:column;gap:6px;width:100%">
+      <label class="flabel" for="inv">邀請碼（向分享給你的人索取）</label>
+      <input id="inv" class="inp" style="max-width:320px">
+    </div>
+    <button class="btn" id="pwBtn" type="button">登入</button>
+    <p class="toast err" id="pwErr"></p>
+    <button type="button" class="linkb" id="fgBtn">忘記密碼？</button>
+    <div id="fgBox" hidden style="flex-direction:column;gap:6px;width:100%;max-width:320px">
+      <p class="hint" style="margin:0">用「救援碼」（在隨手記 設定 → 帳號安全 產生過的）設新密碼。沒有救援碼的話，請網站管理者（分享給你的人）用管理碼幫你重設。</p>
+      <label class="flabel" for="fgUser">帳號</label><input id="fgUser" class="inp" autocomplete="username">
+      <label class="flabel" for="fgCode">救援碼（或管理碼）</label><input id="fgCode" class="inp" autocomplete="off" placeholder="XXXX-XXXX-XXXX">
+      <label class="flabel" for="fgPw">新密碼（至少 6 個字）</label><input id="fgPw" type="password" class="inp" autocomplete="new-password">
+      <button class="btn" id="fgGo" type="button">設定新密碼</button>
+      <p class="toast" id="fgMsg"></p>
+    </div>
+  </section>
+
+  <div id="main" hidden>
+
+  <div class="remind" id="depRemind" hidden><span id="depRemindT"></span><button type="button" class="btn" id="depGo">去回填</button></div>
+  <div class="remind" id="recRemind" hidden><span>還沒有<b>救援碼</b>：忘記密碼時要靠它重設，建議現在產生一組（30 秒）。</span><button type="button" class="btn" id="recGo">去產生</button></div>
+  <section class="slip" id="slip" aria-label="本月摘要">
+    <div class="slip-head">
+      <div>
+        <div class="lab" id="spentLab">本月已刷</div>
+        <div class="big"><em>NT$</em><span id="spent">0</span></div>
+      </div>
+      <span class="pill" id="statusPill">—</span>
+    </div>
+    <div id="budgetBlock" hidden>
+      <div class="bar" aria-hidden="true"><i id="barFill" style="width:0"></i><b id="barToday" style="left:0"></b></div>
+      <div class="bar-legend"><span id="barLeft"></span><span id="barRight"></span></div>
+    </div>
+    <div class="stats">
+      <div><div class="k">本月筆數</div><div class="v" id="cnt">—</div></div>
+      <div><div class="k">卡片額度</div><div class="v" id="nearCap">—</div></div>
+      <div><div class="k">本月收入</div><div class="v" id="incM">—</div></div>
+    </div>
+  </section>
+
+  <form class="panel" id="entry" autocomplete="off">
+    <div class="mode" role="tablist" aria-label="記支出或收入"><button type="button" role="tab" class="mbtn" data-mode="exp" aria-pressed="true" aria-selected="true">支出</button><button type="button" role="tab" class="mbtn" data-mode="inc" aria-pressed="false" aria-selected="false">收入</button></div>
+    <h2><span id="formTitle">記一筆</span><small>多筆一起記可直接打加法，例如 120+85</small></h2>
+    <div class="field">
+      <label for="amount">金額</label>
+      <div class="amt"><span id="amtCur">NT$</span><input id="amount" class="num" inputmode="decimal" placeholder="0" required></div>
+      <div class="amtcalc" id="amtCalc" aria-live="polite"></div>
+    </div>
+    <div class="field">
+      <span class="flabel" id="cardLab">信用卡</span>
+      <div class="srch" id="chipSearchWrap" hidden><input id="chipSearch" type="search" placeholder="搜尋卡片或銀行" aria-label="搜尋卡片"></div>
+      <div class="chips" id="cardChips" role="group" aria-labelledby="cardLab"></div>
+      <button type="button" class="more" id="chipMore" hidden></button>
+      <div class="cardhint" id="cardHint" hidden></div>
+    </div>
+    <div class="field">
+      <span class="flabel" id="catLab">分類</span>
+      <div class="chips" id="catChips" role="group" aria-labelledby="catLab"></div>
+    </div>
+    <div class="row2">
+      <div class="field"><label for="date">日期</label><input id="date" type="date" class="inp num"></div>
+      <div class="field"><label for="note">備註（商家、用途）</label><input id="note" class="inp" maxlength="60" placeholder="例如 全聯、加油"></div>
+    </div>
+    <div class="tripbox" id="tripRow" hidden>
+      <div class="tripline"><label for="tripSel" class="flabel">旅行</label><select id="tripSel" class="inp"></select></div>
+      <div class="tripline" id="curLine" hidden><span class="flabel">輸入幣別</span>
+        <div class="tabs" id="curTabs"></div></div>
+      <label class="chk"><input type="checkbox" id="advChk"> 幫別人代墊（不算自家旅費）</label>
+    </div>
+    <div class="actions">
+      <button class="btn primary" id="saveBtn" type="submit">記下來</button>
+      <button class="btn ghost" id="cancelEdit" type="button" hidden>取消編輯</button>
+    </div>
+    <div class="toast" id="toast" role="status" aria-live="polite"></div>
+  </form>
+
+  <form class="panel" id="incEntry" autocomplete="off" hidden>
+    <div class="mode" role="tablist" aria-label="記支出或收入"><button type="button" role="tab" class="mbtn" data-mode="exp" aria-pressed="false" aria-selected="false">支出</button><button type="button" role="tab" class="mbtn" data-mode="inc" aria-pressed="true" aria-selected="true">收入</button></div>
+    <h2><span>記一筆收入</span><small>HP／Dell 薪資轉帳會自動抓，記了也不會重複算</small></h2>
+    <div class="field"><label for="incAmt">金額</label><div class="amt inc"><span>NT$</span><input id="incAmt" class="num" inputmode="decimal" placeholder="0" required></div></div>
+    <div class="field"><span class="flabel" id="incLab">收入來源</span><div class="chips" id="incChips" role="group" aria-labelledby="incLab"></div></div>
+    <div class="field"><label for="incDate">日期</label><input id="incDate" type="date" class="inp num"></div>
+    <div class="field"><label for="incNote">備註</label><input id="incNote" class="inp" maxlength="60" placeholder="選填，例如 11 月房租、賣舊筆電"></div>
+    <button class="btn primary incbtn" type="submit" id="incSave">記下這筆收入</button>
+    <button class="btn" type="button" id="incCancel" hidden style="margin-top:8px;width:100%">取消修改</button>
+  </form>
+
+  <div class="vtabs" role="tablist" aria-label="檢視">
+    <button role="tab" id="vLg" aria-selected="true" type="button">明細<span class="vc" id="vLgN"></span></button>
+    <button role="tab" id="vCap" aria-selected="false" type="button">卡片額度<span class="vc warn" id="vCapN"></span></button>
+    <button role="tab" id="vBrk" aria-selected="false" type="button">分布</button>
+    <button role="tab" id="vTrip" aria-selected="false" type="button">旅行</button>
+    <button role="tab" id="vInc" aria-selected="false" type="button">收入</button>
+  </div>
+
+  <section class="panel" id="incSec" aria-labelledby="incTitle" hidden>
+    <h2 id="incTitle"><span>收入</span><small id="incSum"></small></h2>
+    <p class="hint" style="margin:0">HP／Dell 薪資轉帳會自動從存款對帳單抓，<b>不用記</b>。要記收入：最上面「記一筆」切到 <b>＋ 收入</b>。</p>
+    <div id="incList"></div>
+  </section>
+
+  <section class="panel" id="pkSec" aria-labelledby="pkTitle" hidden>
+    <h2 id="pkTitle"><span>卡號</span><small id="pkState"></small></h2>
+    <div id="pkLock" class="pklock" hidden>
+      <input id="pkPin" type="password" inputmode="numeric" class="inp num" placeholder="輸入保險箱密碼解鎖" autocomplete="off" aria-label="保險箱密碼">
+      <button class="btn primary" id="pkUnlock" type="button">解鎖</button>
+    </div>
+    <div id="pkList" class="pklist"></div>
+  </section>
+
+  <section class="panel" id="lgSec" aria-labelledby="lgTitle">
+    <h2 id="lgTitle"><span>明細</span><span class="h2r"><small id="lgCount"></small><button class="ibtn" id="lgExport" type="button">匯出 Excel…</button></span></h2>
+    <div class="lgtools"><div class="srch"><input id="lgSearch" type="search" placeholder="搜尋備註、卡片、分類、金額" aria-label="搜尋明細"></div>
+      <select id="lgCard" class="inp" aria-label="只看哪張卡"><option value="">全部卡片</option></select>
+      <select id="lgSort" class="inp" aria-label="排序"><option value="new">日期 新→舊</option><option value="old">日期 舊→新</option><option value="bank">依銀行</option><option value="card">依卡片</option><option value="amt">金額 大→小</option></select></div>
+    <div id="ledger"></div>
+  </section>
+
+  <section class="panel" id="capSec" aria-labelledby="capTitle" hidden>
+    <h2 id="capTitle"><span>各卡回饋額度</span><small id="capTg"></small></h2>
+    <div class="srch"><input id="capSearch" type="search" placeholder="搜尋卡片" aria-label="搜尋卡片額度"></div>
+    <div class="caps" id="caps"></div>
+    <button type="button" class="more" id="capMore" hidden></button>
+  </section>
+
+  <section class="panel" id="brkSec" aria-labelledby="brkTitle" hidden>
+    <h2 id="brkTitle"><span>本月分布</span><small id="brkCount"></small></h2>
+    <div class="tabs" role="tablist">
+      <button role="tab" id="tabCard" aria-selected="true">依卡片</button>
+      <button role="tab" id="tabBank" aria-selected="false">依銀行</button>
+      <button role="tab" id="tabCat" aria-selected="false">依分類</button>
+    </div>
+    <div class="brk" id="brk"></div>
+  </section>
+
+  <section class="panel" id="tripSec" aria-labelledby="tripTitle" hidden>
+    <h2 id="tripTitle"><span>旅行記帳</span><span class="h2r"><span id="tripPickWrap"><select id="tripPick" class="inp" aria-label="選擇旅行" style="padding:6px 8px;font-size:13px"></select></span><button class="ibtn" type="button" id="tripNew">＋ 新增旅行</button></span></h2>
+    <div class="tripadd" id="tripForm" hidden>
+      <label class="flabel" style="grid-column:1/-1">目的地<select id="tDest" class="inp"></select></label>
+      <input id="tName" class="inp" placeholder="旅行名稱" maxlength="30" aria-label="旅行名稱">
+      <label class="flabel">出發<input type="date" id="tStart" class="inp num"></label>
+      <label class="flabel">回程<input type="date" id="tEnd" class="inp num"></label>
+      <label class="flabel" id="tRateWrap">匯率（1 外幣＝幾元台幣）<input id="tRate" class="inp num" inputmode="decimal"></label>
+      <label class="flabel">自家人數<input id="tPeople" class="inp num" inputmode="numeric" placeholder="例如 4"></label>
+      <label class="flabel">旅行預算（台幣，可留空）<input id="tBudget" class="inp num" inputmode="numeric" placeholder="例如 60000"></label>
+      <span class="hint" id="tRateNote" style="grid-column:1/-1"></span>
+      <button class="btn" type="button" id="tripAdd">新增旅行</button>
+    </div>
+    <div id="tripBody" style="display:flex;flex-direction:column;gap:12px"></div>
+  </section>
+
+  <div class="sheetbg" id="exportSheet" hidden>
+    <section class="sheet" role="dialog" aria-modal="true" aria-labelledby="exTitle">
+      <h2 id="exTitle"><span>匯出 Excel</span><button class="ibtn" id="exClose" type="button">關閉</button></h2>
+      <div class="field"><span class="flabel">範圍</span>
+        <div class="exrow">
+          <select id="exRange" class="inp" aria-label="匯出範圍">
+            <option value="month">目前顯示的月份</option><option value="last">上個月</option><option value="year">今年</option><option value="lastyear">去年</option><option value="all">全部</option>
+            <option value="custom">自訂月份範圍</option><option value="trip">某一趟旅行</option>
+          </select>
+          <span id="exCustom" hidden class="exrow"><input type="month" id="exFrom" class="inp num" aria-label="起始月份"><span class="hint">至</span><input type="month" id="exTo" class="inp num" aria-label="結束月份"></span>
+          <span id="exTripWrap" hidden><select id="exTrip" class="inp" aria-label="選擇旅行"></select></span>
+        </div>
+        <span class="hint" id="exTripNone" hidden>還沒有旅行，請先在「設定 › 旅行」新增。</span>
+      </div>
+      <div class="field"><span class="flabel">只匯出（可不選）</span>
+        <div class="exrow">
+          <select id="exCard" class="inp" aria-label="信用卡"></select>
+          <select id="exBank" class="inp" aria-label="銀行"></select>
+          <select id="exCat" class="inp" aria-label="分類"></select>
+        </div>
+      </div>
+      <div class="field"><span class="flabel">要包含的工作表</span>
+        <div class="checks">
+          <label class="chk"><input type="checkbox" class="exInc" value="detail" checked> 消費明細</label>
+          <label class="chk"><input type="checkbox" class="exInc" value="cat" checked> 依分類統計</label>
+          <label class="chk"><input type="checkbox" class="exInc" value="card" checked> 依信用卡統計</label>
+          <label class="chk"><input type="checkbox" class="exInc" value="bank" checked> 依銀行統計</label>
+          <label class="chk"><input type="checkbox" class="exInc" value="month" checked> 依月份統計</label>
+          <label class="chk"><input type="checkbox" class="exInc" value="cards"> 卡片清單（上限、本期已刷）</label>
+          <label class="chk"><input type="checkbox" class="exInc" value="trips"> 旅行總覽（預算、自家旅費）</label>
+        </div>
+      </div>
+      <div class="exsum" id="exSum">—</div>
+      <button class="btn primary" type="button" id="exGo">匯出 Excel</button>
+    </section>
+  </div>
+
+  <div class="sheetbg" id="updSheet" hidden>
+    <section class="sheet" role="dialog" aria-modal="true" aria-labelledby="updTitle">
+      <h2><span id="updTitle">回饋規則更新</span><button class="ibtn" id="updClose" type="button">關閉</button></h2>
+      <p class="hint" id="updInfo"></p>
+      <div id="updList" class="updlist"></div>
+      <div class="exrow"><button class="btn primary" id="updApply" type="button">套用勾選的更新</button><button class="btn ghost" id="updPick" type="button">看資料庫其他卡</button></div>
+      <p class="hint">套用會更新回饋 %、加碼上限、每期上限與限定分類；卡名、結帳日、卡號、通路額度池都不會動。你自己改過的數字會被資料庫的值取代，不想換的請取消勾選。</p>
+    </section>
+  </div>
+  <div class="sheetbg" id="vaultSheet" hidden>
+    <section class="sheet" role="dialog" aria-modal="true" aria-labelledby="vsTitle">
+      <h2><span id="vsTitle">卡片</span><button class="ibtn" id="vsClose" type="button">關閉</button></h2>
+      <div id="vsLocked" class="exrow">
+        <input id="vPinQuick" type="password" inputmode="numeric" class="inp num" placeholder="保險箱密碼" autocomplete="off" aria-label="保險箱密碼">
+        <button class="btn" id="vsUnlock" type="button">解鎖</button>
+      </div>
+      <div id="vsOpen" hidden style="display:flex;flex-direction:column;gap:12px">
+        <div class="vcard"><div class="vlab">卡號</div><div class="vpan num" id="vsPan"></div>
+          <div class="vgrid"><div><div class="vlab">到期</div><div class="num vval" id="vsExp"></div></div><div><div class="vlab">CVV</div><div class="num vval" id="vsCvv"></div></div></div></div>
+        <div class="exrow"><button class="btn primary" id="vsCopy" type="button">複製 16 碼卡號</button><button class="btn ghost" id="vsCopyExp" type="button">複製到期日</button><button class="btn ghost" id="vsShowCvv" type="button">顯示 CVV 10 秒</button></div>
+        <button class="ibtn" id="vsLock" type="button">立即上鎖</button>
+      </div>
+    </section>
+  </div>
+
+  <section class="panel" id="cardsSec" aria-labelledby="cardsTitle" hidden>
+    <h2 id="cardsTitle"><span>我的卡片</span><small id="cardsCnt"></small></h2>
+    <div class="cardbar">
+      <button class="btn ghost" type="button" id="impBtn">⚡ 從我的帳單一鍵匯入</button>
+      <button class="btn ghost" type="button" id="pickBtn">＋ 從卡片資料庫加入</button>
+      <button class="btn ghost" type="button" id="addCardBtn">＋ 自己新增</button>
+      <button class="btn" type="button" id="cardsSave">儲存卡片設定</button>
+    </div>
+    <div class="picker" id="impBox" hidden>
+      <div class="hint" id="impInfo">讀取中…</div>
+      <div class="cgrid" id="impList"></div>
+      <div class="cardbar2"><button class="btn ghost" type="button" id="impAll">全選／全不選</button><button class="btn" type="button" id="impGo">匯入勾選的卡</button></div>
+    </div>
+    <div class="picker" id="picker" hidden>
+      <div class="srch"><input id="pickSearch" type="search" placeholder="搜尋銀行或卡名，例如 玉山、CUBE" aria-label="搜尋卡片資料庫"></div>
+      <div class="hint" id="pickInfo"></div>
+      <div class="cgrid" id="pickList"></div>
+    </div>
+    <p class="hint">☆ 點成 ★＝常用卡：記帳時只先列出 ★ 的卡（沒設 ★ 的話，自動列你最常用的 6 張）。按住 ⋮⋮ 上下拖曳調整順序（記帳、額度、匯出都照這個順序）。點卡名展開修改。改完按上面「儲存卡片設定」。</p>
+    <div class="cardbar2"><button class="btn ghost" type="button" id="byUse">依使用次數重新排列</button></div>
+    <div class="srch"><input id="ceSearch" type="search" placeholder="搜尋我的卡片" aria-label="搜尋我的卡片"></div>
+    <div class="cgrid" id="cardEdit"></div>
+  </section>
+
+  <details class="panel" id="settings">
+    <summary>設定</summary>
+    <div class="field">
+      <label class="flabel" for="nfbSel">底部選單避開「Powered by Netlify」標籤</label>
+      <select id="nfbSel" class="inp"><option value="auto">自動（標籤出現才往上移）</option><option value="on">一律往上移</option><option value="off">不要移</option></select>
+    </div>
+    <div class="field" id="secBox">
+      <span class="flabel">帳號安全</span>
+      <div class="deptop"><button class="btn ghost" type="button" id="recBtn">產生救援碼</button><span class="hint" id="recInfo"></span></div>
+      <div id="recShow" hidden class="warnbox"></div>
+      <details class="depbanks"><summary>改密碼</summary>
+        <div class="deptop"><input id="npw1" type="password" class="inp" placeholder="新密碼（至少 6 個字）" autocomplete="new-password"><input id="npw2" type="password" class="inp" placeholder="再輸入一次" autocomplete="new-password"><button class="btn" type="button" id="npwGo">改密碼</button></div>
+        <p class="hint">改完之後，電腦的「設定精靈 → 【0b】隨手記」也要填新密碼，月報和生活帳本才會用新密碼重新加密。</p>
+      </details>
+    </div>
+    <div class="field" id="depBox">
+      <span class="flabel">存款回填（沒有電子對帳單的銀行：每月 1–5 號填上個月底餘額）</span>
+      <div class="deptop"><label>月份 <input type="month" id="depMonth" class="inp"></label><span class="hint" id="depLast"></span></div>
+      <div id="depList" class="deplist"></div>
+      <div class="deptop"><button class="btn" type="button" id="depSave">儲存存款餘額</button></div>
+      <details class="depbanks"><summary>要回填的銀行</summary><input id="depBanks" class="inp" aria-label="要回填的銀行，用逗號分隔"><p class="hint">用逗號分隔，例如：中信,玉山,LINE Bank,國泰。改完按上面「儲存存款餘額」。</p></details>
+      <p class="hint">懶得打字：把網銀 App 的餘額截圖傳給 Claude，請它幫你填進來也可以。存好後，電腦下次更新（最慢約 4 小時）就會出現在月報、生活帳本和 Excel 的「帳上存款」。</p>
+    </div>
+    <div class="field"><span class="flabel">匯出 Excel 報表</span><button class="btn ghost" type="button" id="openExport2">選擇範圍與內容後匯出…</button></div>
+    <div class="field">
+      <label for="budgetAll">每月總預算（可留空）</label>
+      <div class="actions">
+        <input id="budgetAll" class="inp num" inputmode="numeric" placeholder="留空＝不設" style="flex:1;min-width:120px">
+        <button class="btn" type="button" id="budgetSave">儲存</button>
+      </div>
+    </div>
+    <div class="field" hidden>
+      <span class="flabel" id="vaultBox">卡片保險箱（已停用）</span>
+      <div id="vaultBody" style="display:flex;flex-direction:column;gap:8px"></div>
+    </div>
+    <div class="field">
+      <span class="flabel">旅行（新增、換匯率請到「旅行」分頁）</span>
+      <div class="cardlist" id="tripEdit"></div>
+    </div>
+    <div class="field">
+      <span class="flabel">備份與匯出</span>
+      <div class="warnbox">記錄存在雲端、只有這個帳號看得到；手機、電腦用同一個帳號登入就會同步，系統每天自動留一份快照。換網站或舊版的備份檔，可以用「匯入備份」整份搬上來（重複的不會加兩次）。</div>
+      <div class="backup">
+        <button class="btn ghost" type="button" id="expJson">匯出備份</button>
+        <label class="btn ghost" for="impFile" style="cursor:pointer">匯入備份</label>
+        <input type="file" id="impFile" accept=".json,application/json" hidden>
+        <button class="btn ghost" type="button" id="expCsv">匯出 CSV（給 Excel）</button>
+      </div>
+    </div>
+    <details class="field" id="adminSec">
+      <summary class="flabel" style="cursor:pointer">卡片資料庫管理（管理員）</summary>
+      <p class="hint">更新所有人共用的卡片回饋資料庫。需要 Netlify 設定的 ADMIN_KEY。</p>
+      <input id="adminKey" type="password" class="inp" placeholder="ADMIN_KEY" style="max-width:320px" aria-label="管理員金鑰">
+      <div class="backup">
+        <label class="btn ghost" for="catFile" style="cursor:pointer">匯入資料庫 JSON</label>
+        <input type="file" id="catFile" accept=".json,application/json" hidden>
+      </div>
+    </details>
+  </details>
+
+  <nav class="bnav" id="bnav" aria-label="主選單">
+    <button type="button" data-pg="rec" aria-current="page"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M12 5v14M5 12h14"/></svg><span>記帳</span></button>
+    <button type="button" data-pg="list"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M8 6h12M8 12h12M8 18h12M4 6h.01M4 12h.01M4 18h.01"/></svg><span>明細</span></button>
+    <button type="button" data-pg="ana"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M4 20V10M10 20V4M16 20v-7M22 20H2"/></svg><span>分析</span></button>
+    <button type="button" data-pg="cards"><svg viewBox="0 0 24 24" aria-hidden="true"><rect x="2" y="5" width="20" height="14" rx="2"/><path d="M2 10h20"/></svg><span>卡片</span></button>
+    <button type="button" data-pg="set"><svg viewBox="0 0 24 24" aria-hidden="true"><circle cx="12" cy="12" r="3"/><path d="M19.4 15a1.7 1.7 0 0 0 .3 1.8l.1.1a2 2 0 1 1-2.8 2.8l-.1-.1a1.7 1.7 0 0 0-1.8-.3 1.7 1.7 0 0 0-1 1.5V21a2 2 0 1 1-4 0v-.1a1.7 1.7 0 0 0-1.1-1.5 1.7 1.7 0 0 0-1.8.3l-.1.1a2 2 0 1 1-2.8-2.8l.1-.1a1.7 1.7 0 0 0 .3-1.8 1.7 1.7 0 0 0-1.5-1H3a2 2 0 1 1 0-4h.1a1.7 1.7 0 0 0 1.5-1.1 1.7 1.7 0 0 0-.3-1.8l-.1-.1a2 2 0 1 1 2.8-2.8l.1.1a1.7 1.7 0 0 0 1.8.3H9a1.7 1.7 0 0 0 1-1.5V3a2 2 0 1 1 4 0v.1a1.7 1.7 0 0 0 1 1.5 1.7 1.7 0 0 0 1.8-.3l.1-.1a2 2 0 1 1 2.8 2.8l-.1.1a1.7 1.7 0 0 0-.3 1.8V9a1.7 1.7 0 0 0 1.5 1H21a2 2 0 1 1 0 4h-.1a1.7 1.7 0 0 0-1.5 1z"/></svg><span>設定</span></button>
+  </nav>
+  <div class="sync" id="syncBar"><span id="saveInfo">—</span><span><button class="ibtn" id="updBtn" type="button">檢查回饋更新</button> <button class="ibtn" id="syncBtn" type="button">立即同步</button> <button class="ibtn" id="forgetBtn" type="button">在這台裝置登出</button></span></div>
+  </div>
+</div>
+
+<script>
+(function(){
+  "use strict";
+  const KEY = "cardflow-ledger-v1";
+  const BANKS = {"台新":"#2A78D6","永豐":"#EB6834","玉山":"#1BAF7A","聯邦":"#C98A00","中信":"#D9608E","星展":"#008300","國泰":"#4A3AA7","富邦":"#0E7C86","遠東":"#1E6F5C","滙豐":"#DB0011","其他":"#6B7686"};
+  const CATS = ["餐飲","超市便利商店","網購","交通停車加油","旅遊住宿","生活繳費","百貨購物","醫療","教育","運動休閒","保險","汽車保養","稅款","房貸","其他"];
+  const $ = id => document.getElementById(id);
+  const fmt = n => Math.round(n).toLocaleString("en-US");
+  const pad = n => String(n).padStart(2,"0");
+  const uid = () => Date.now().toString(36)+Math.random().toString(36).slice(2,6);
+  const TODAY = (()=>{ try{ return new Date().toLocaleDateString("sv-SE",{timeZone:"Asia/Taipei"}); }catch(e){ const d=new Date(); return d.getFullYear()+"-"+pad(d.getMonth()+1)+"-"+pad(d.getDate()); } })();
+
+  /* ====== 雲端儲存 ====== */
+  let D = null, REV = 0, PW = null, USER = null, syncing = false, lastSync = 0, regMode = false;
+  try{ PW = localStorage.getItem("cf-pw"); USER = localStorage.getItem("cf-user"); }catch(e){}
+  function seed(){ return {version:1, budget:null, cards:[{id:uid(),bank:"其他",name:"現金／其他",cap:null,cycleDay:null,cats:[],note:""}], records:[]}; }
+  function norm(){ D.records = D.records||[]; D.cards = D.cards||[]; D.trips = D.trips||[]; D.incomes = D.incomes||[]; }
+  async function api(method, body){
+    const r = await fetch(LLAPI+"/api/ledger", {method, cache:"no-store", headers:{"content-type":"application/json","x-cf-user":encodeURIComponent(USER||""),"x-cf-key":encodeURIComponent(PW||"")}, body: body?JSON.stringify(body):undefined});
+    let j = {}; try{ j = await r.json(); }catch(e){}
+    return {status:r.status, j};
+  }
+  function cacheSave(){ try{ localStorage.setItem("cf-sync-cache", JSON.stringify({rev:REV,data:D})); }catch(e){} }
+  function cacheLoad(){ try{ const c=JSON.parse(localStorage.getItem("cf-sync-cache")||"null"); if(c&&c.data){ D=c.data; REV=c.rev; norm(); return true; } }catch(e){} return false; }
+  function setSync(ok, msg){
+    const el=$("saveInfo"); el.textContent="";
+    const d=document.createElement("span"); d.className="dotst"+(ok?"":" off"); el.appendChild(d);
+    el.appendChild(document.createTextNode((USER?USER+"・":"")+(msg || ("已同步 "+new Date().toLocaleTimeString("zh-TW",{hour:"2-digit",minute:"2-digit"})+"・共 "+D.records.length+" 筆"))));
+  }
+  async function pull(){
+    const {status,j} = await api("GET");
+    if(status===401||status===429) throw {auth:true, msg:j.error};
+    if(status!==200) throw new Error(j.error||"讀取失敗（"+status+"）");
+    REV = j.rev; D = j.data; lastSync = Date.now();
+  }
+  /* 修改：先套用在副本 → 送上雲端；別台裝置剛好也改過就拿最新的再套一次 */
+  async function mutate(fn){
+    for(let k=0;k<3;k++){
+      const draft = JSON.parse(JSON.stringify(D)); fn(draft);
+      const {status,j} = await api("PUT", {base:REV, data:draft});
+      if(status===200){ D=draft; REV=j.rev; norm(); cacheSave(); setSync(true); return; }
+      if(status===409){ D=j.data||seed(); REV=j.rev; norm(); continue; }
+      if(status===401) throw {auth:true};
+      throw new Error(j.error||"儲存失敗（"+status+"）");
+    }
+    throw new Error("另一台裝置也在存檔，請再按一次");
+  }
+  async function act(fn, okMsg){
+    busy(true);
+    try{ await mutate(fn); renderAll(); if(okMsg) toast(okMsg); return true; }
+    catch(e){ if(e&&e.auth){ askPw("密碼已變更，請重新輸入。"); } else { toast("沒有存到："+((e&&e.message)||"網路有問題，請稍後再試"), true); setSync(false,"未同步：網路有問題"); } return false; }
+    finally{ busy(false); }
+  }
+  function busy(on){ $("app").classList.toggle("loading", !!on); }
+
+  let chipAll = false, capAll = false;
+  let M = TODAY.slice(0,7), selCard = null, selCat = null, editId = null, brkMode = "card";
+  try{ selCard = localStorage.getItem("cf-lastcard"); }catch(e){}
+
+  const bankColor = b => BANKS[b] || BANKS["其他"];
+  function badge(b){ const s=document.createElement("span"); s.className="bb"; s.style.background=bankColor(b); s.textContent=b||"其他"; return s; }
+  const monLabel = m => m.slice(0,4)+" 年 "+Number(m.slice(5))+" 月";
+  const daysIn = m => new Date(+m.slice(0,4), +m.slice(5), 0).getDate();
+  function shiftM(m,d){ let y=+m.slice(0,4), mo=+m.slice(5)+d; while(mo<1){mo+=12;y--;} while(mo>12){mo-=12;y++;} return y+"-"+pad(mo); }
+  function ymd(y,m,d){ const dim=new Date(y,m,0).getDate(); return y+"-"+pad(m)+"-"+pad(Math.min(d,dim)); }
+  function evalAmount(s){ s=String(s).replace(/[,，\s]/g,"").replace(/＋/g,"+"); if(!/^\d+(\.\d+)?(\+\d+(\.\d+)?)*$/.test(s)) return NaN; return s.split("+").reduce((a,b)=>a+Number(b),0); }
+  function toast(msg, err){ const t=$("toast"); t.textContent=msg; t.className="toast"+(err?" err":""); clearTimeout(toast._t); toast._t=setTimeout(()=>{t.textContent="";},4000); }
+  function banner(msg){ const b=$("banner"); b.textContent=msg||""; b.hidden=!msg; }
+  const cardOf = r => D.cards.find(c=>c.id===r.cardId) || D.cards.find(c=>c.name===r.cardName);
+  const bankOf = r => { const c=cardOf(r); return c ? c.bank : (r.bank||"其他"); };
+  const monthItems = () => D.records.filter(x=>x.date.slice(0,7)===M);
+
+  /* ====== 計算 ====== */
+  function periodFor(card){
+    const ref = (M === TODAY.slice(0,7)) ? TODAY : ymd(+M.slice(0,4), +M.slice(5), 31);
+    const y=+ref.slice(0,4), m=+ref.slice(5,7), d=+ref.slice(8);
+    if(!card.cycleDay) return {from:M+"-01", to:ymd(+M.slice(0,4),+M.slice(5),31), label:"自然月 "+Number(M.slice(5))+" 月"};
+    const cd=card.cycleDay, endThis=Math.min(cd,new Date(y,m,0).getDate());
+    let sY=y,sM=m,eY=y,eM=m;
+    if(d<=endThis){ sM=m-1; if(sM<1){sM=12;sY--;} } else { eM=m+1; if(eM>12){eM=1;eY++;} }
+    const st=new Date(sY,sM-1,Math.min(cd,new Date(sY,sM,0).getDate())+1);
+    const from=st.getFullYear()+"-"+pad(st.getMonth()+1)+"-"+pad(st.getDate()), to=ymd(eY,eM,cd);
+    return {from,to,label:"帳單週期 "+Number(from.slice(5,7))+"/"+Number(from.slice(8))+"–"+Number(to.slice(5,7))+"/"+Number(to.slice(8))};
+  }
+  function capUse(card){
+    const p=periodFor(card), cats=card.cats||[];
+    const used=D.records.filter(x=>(x.cardId===card.id || (!x.cardId && x.cardName===card.name)) && x.date>=p.from && x.date<=p.to && (!cats.length || cats.indexOf(x.category)>=0)).reduce((a,x)=>a+x.amount,0);
+    return {p,used,pct:card.cap?used/card.cap:null,left:card.cap?card.cap-used:null};
+  }
+  function expState(exp){ const end=ymd(+exp.slice(0,4),+exp.slice(5,7),31); if(end<TODAY) return "gone"; const lim=new Date(Date.parse(TODAY+"T00:00:00")+60*864e5).toISOString().slice(0,10); return end<=lim?"soon":""; }
+  const lvl = pct => pct==null ? "" : pct>=1 ? "bad" : pct>=0.8 ? "warn" : "ok";
+
+  /* ====== 畫面 ====== */
+  function renderSummary(){
+    const its=monthItems(), spent=its.reduce((a,x)=>a+x.amount,0), dim=daysIn(M);
+    const isCur=M===TODAY.slice(0,7), isPast=M<TODAY.slice(0,7), dayNow=isCur?+TODAY.slice(8):(isPast?dim:0);
+    $("monLabel").textContent=monLabel(M);
+    $("spentLab").textContent=isCur?"本月已刷":monLabel(M)+" 共刷";
+    $("spent").textContent=fmt(spent); $("cnt").textContent=its.length+" 筆";
+    const usesC=D.cards.filter(c=>c.cap).map(capUse);
+    const over=usesC.filter(u=>u.pct>=1).length, near=usesC.filter(u=>u.pct>=0.8&&u.pct<1).length;
+    $("nearCap").textContent=!usesC.length?"未設上限":(over?over+" 超過":"")+(over&&near?"・":"")+(near?near+" 快到":"")+(!over&&!near?"都在額度內":"");
+    const vn=$("vCapN"); vn.textContent=(over+near)||""; vn.className="vc "+(over?"bad":"warn");
+    const capMsg = over ? over+" 張卡已超過上限"+(near?"、"+near+" 張快到":"") : (near ? near+" 張卡快到上限" : "");
+    const incM=(D.incomes||[]).filter(x=>x.date.slice(0,7)===M).reduce((a,x)=>a+x.amount,0);
+    $("incM").textContent=incM?"NT$ "+fmt(incM):"—";
+    const B=D.budget, pill=$("statusPill");
+    if(!B){ $("budgetBlock").hidden=true; pill.textContent=capMsg||"額度都還夠"; pill.className="pill "+(over?"bad":near?"warn":"ok"); return; }
+    $("budgetBlock").hidden=false; const pct=spent/B;
+    $("barFill").style.width=Math.min(100,pct*100)+"%"; $("barFill").classList.toggle("over",pct>1);
+    $("barToday").style.left="calc("+(dayNow/dim*100)+"% - 1px)"; $("barToday").hidden=!isCur;
+    $("barLeft").textContent="總預算 NT$ "+fmt(B)+"　已用 "+(pct*100).toFixed(0)+"%"; $("barRight").textContent=isCur?"白線＝今天":"";
+    let cls="ok",txt="進度正常"; if(pct>1){cls="bad";txt="超出總預算";} else if(over){cls="bad";txt=capMsg;} else if(near){cls="warn";txt=capMsg;}
+    pill.textContent=txt; pill.className="pill "+cls;
+  }
+  function renderCaps(){
+    const box=$("caps"); box.textContent="";
+    if(!D.cards.length){ const e=document.createElement("div"); e.className="empty"; e.textContent="還沒有卡片，請到下方「設定」新增。"; box.appendChild(e); return; }
+    const q=($("capSearch").value||"").trim().toLowerCase();
+    let rows=D.cards.map(c=>({c,u:capUse(c)})).sort((a,b)=>(b.c.cap?1:0)-(a.c.cap?1:0)||(b.u.pct||0)-(a.u.pct||0)||b.u.used-a.u.used);
+    const active=rows.filter(r=>r.c.cap||r.u.used>0);
+    $("capTg").textContent=active.length+" 張有設上限或本期有消費";
+    if(q) rows=rows.filter(r=>(r.c.bank+r.c.name).toLowerCase().includes(q));
+    else if(!capAll) rows=(active.length?active:rows).slice(0,5);
+    const mb=$("capMore"); mb.hidden=!!q || D.cards.length<=Math.min(5,active.length||5); mb.textContent=capAll?"收合 ▴":"顯示全部 "+D.cards.length+" 張 ▾";
+    if(!rows.length){ const e=document.createElement("div"); e.className="empty"; e.textContent="找不到符合的卡片"; box.appendChild(e); }
+    rows.forEach(({c,u})=>{
+      const r=document.createElement("div"); r.className="cap"+(c.cap?"":" nocap");
+      const n=document.createElement("div"); n.className="n"; n.appendChild(badge(c.bank)); const s=document.createElement("span"); s.textContent=dispName(c); n.appendChild(s); const extra=[];
+      if(c.exp){ const ex=document.createElement("span"); const st=expState(c.exp); ex.className="exp "+st; ex.textContent=(st==="gone"?"已過期 ":"到期 ")+c.exp.slice(5)+"/"+c.exp.slice(2,4); extra.push(ex); }
+      if(isVaulted(c)){ const vb=document.createElement("button"); vb.type="button"; vb.className="vbtn"; vb.textContent="複製16碼"; vb.addEventListener("click",()=>quickCopy(c.id)); extra.push(vb); }
+      const v=document.createElement("div"); v.className="v"; v.textContent=fmt(u.used); const sm=document.createElement("small"); sm.textContent=c.cap?" / "+fmt(c.cap):" 未設上限"; v.appendChild(sm);
+      const t=document.createElement("div"); t.className="t"; const i=document.createElement("i"); i.className=lvl(u.pct); i.style.width=Math.min(100,(u.pct||0)*100)+"%"; t.appendChild(i);
+      const st=document.createElement("div"); st.className="s"; const a=document.createElement("span"); a.textContent=u.p.label+((c.cats||[]).length?"・只算 "+c.cats.join("、"):""); extra.forEach(x=>{ x.style.marginLeft="6px"; a.appendChild(x); });
+      const b=document.createElement("span");
+      if(c.cap){ const bb=document.createElement("b"); bb.className=lvl(u.pct); bb.textContent=u.left>=0?"還可刷 NT$ "+fmt(u.left):"已超過 NT$ "+fmt(-u.left); b.appendChild(bb); }
+      if(c.note) b.appendChild(document.createTextNode((c.cap?"・":"")+c.note));
+      if(catNewer(c)){ const up=document.createElement("span"); up.className="upd"; up.textContent="回饋規則有更新"; up.style.marginLeft="6px"; b.appendChild(up); }
+      st.append(a,b); r.append(n,v,t,st); box.appendChild(r);
+    });
+  }
+  function renderChips(){
+    const cc=$("cardChips"); cc.textContent="";
+    if(selCard && !D.cards.some(c=>c.id===selCard)) selCard=null;
+    if(!selCard && D.cards.length) selCard=(D.cards.find(c=>c.fav)||D.cards[0]).id;
+    const many = D.cards.length > 6;
+    $("chipSearchWrap").hidden = !many;
+    const q = ($("chipSearch").value||"").trim().toLowerCase();
+    const recentCut = shiftM(TODAY.slice(0,7),-2)+"-01";
+    const useCnt = id => D.records.filter(r=>r.cardId===id && r.date>=recentCut).length;
+    let shown = D.cards.slice();
+    if(q) shown = shown.filter(c=>(c.bank+c.name).toLowerCase().includes(q));
+    else if(many && !chipAll){ const favs=shown.filter(c=>c.fav); shown = favs.length ? favs : shown.slice().sort((a,b)=>useCnt(b.id)-useCnt(a.id)).slice(0,6); if(!shown.some(c=>c.id===selCard)){ const s=D.cards.find(c=>c.id===selCard); if(s) shown.push(s); } }
+    const mb=$("chipMore"); mb.hidden = !many || !!q; mb.textContent = chipAll ? "只顯示常用 ★ ▴" : "顯示全部 "+D.cards.length+" 張卡 ▾";
+    if(q && !shown.length){ const e=document.createElement("span"); e.className="hint"; e.textContent="找不到符合的卡片"; cc.appendChild(e); }
+    shown.forEach(c=>{
+      const b=document.createElement("button"); b.type="button"; b.className="chip"; b.setAttribute("aria-pressed",String(c.id===selCard));
+      const d=document.createElement("span"); d.className="dot"; d.style.background=bankColor(c.bank); b.appendChild(d); b.appendChild(document.createTextNode(dispName(c)));
+      b.addEventListener("click",()=>{ selCard=c.id; try{localStorage.setItem("cf-lastcard",c.id);}catch(e){} renderChips(); }); cc.appendChild(b);
+    });
+    const card=D.cards.find(c=>c.id===selCard), h=$("cardHint");
+    if(card&&card.cap){ const u=capUse(card); h.hidden=false; h.textContent=""; h.appendChild(document.createTextNode(u.p.label+"已刷 NT$ "+fmt(u.used)+"，"));
+      const bb=document.createElement("b"); bb.className=lvl(u.pct); bb.textContent=u.left>=0?"回饋額度內還可刷 NT$ "+fmt(u.left):"已超過上限 NT$ "+fmt(-u.left)+"，建議換卡"; h.appendChild(bb);
+      if((card.cats||[]).length) h.appendChild(document.createTextNode("（只算 "+card.cats.join("、")+"）")); } else { h.hidden=true; h.textContent=""; }
+    if(card && isVaulted(card)){ h.hidden=false; const vb=document.createElement("button"); vb.type="button"; vb.className="vbtn"; vb.textContent="複製16碼"; vb.addEventListener("click",()=>quickCopy(card.id)); h.appendChild(vb); }
+    const kc=$("catChips"); kc.textContent="";
+    if(!selCat) selCat=CATS[0];
+    CATS.forEach(k=>{ const b=document.createElement("button"); b.type="button"; b.className="chip"; b.setAttribute("aria-pressed",String(k===selCat)); b.textContent=k; b.addEventListener("click",()=>{selCat=k;renderChips();}); kc.appendChild(b); });
+  }
+  /* 回饋估算：依每張卡設定的「一般回饋 %」「加碼回饋 %」「加碼上限」計算，不是銀行實際入帳金額 */
+  // 同一張實體卡可以拆成多個「通路額度池」（parentId 指向主卡），卡號共用主卡
+  const rootOf = c => (c && c.parentId && D.cards.find(k=>k.id===c.parentId)) || c;
+  // 額度池顯示時把通路放前面（手機寬度會截斷後半）
+  const dispName = c => { if(!c) return ""; if(!c.parentId) return c.name; const m=c.name.split(" – "); return m.length>1 ? m.slice(1).join(" – ")+"｜"+m[0] : c.name; };
+  const isVaulted = c => false;   // 卡號保險箱已停用（卡號只放電腦上的 Excel）
+  function rebateEst(card, recs){
+    if(!card || (card.rBase==null && card.rBonus==null)) return null;
+    const mine=recs.filter(r=>r.cardId===card.id || (!r.cardId && r.cardName===card.name));
+    const spend=mine.reduce((a,r)=>a+r.amount,0);
+    const scope=mine.filter(r=>!(card.cats||[]).length || card.cats.indexOf(r.category)>=0).reduce((a,r)=>a+r.amount,0);
+    let bonus=scope*(card.rBonus||0)/100; if(card.rCap) bonus=Math.min(bonus, card.rCap);
+    return Math.max(0, spend*(card.rBase||0)/100 + bonus);
+  }
+  function renderBreakdown(){
+    const box=$("brk"); box.textContent=""; const its=monthItems(), total=its.reduce((a,x)=>a+x.amount,0);
+    const est={}; let estTot=0, estN=0, noRate=0;
+    D.cards.forEach(c=>{ const v=rebateEst(c, its); if(v==null){ if(its.some(r=>r.cardId===c.id)) noRate++; return; } est[c.name]=v; estTot+=v; estN++; });
+    if(its.length){ const sm=document.createElement("div"); sm.className="rbsum";
+      const a=document.createElement("b"); a.textContent="本月回饋估計 NT$ "+fmt(estTot);
+      const b=document.createElement("span"); b.className="hint"; b.textContent="依各卡設定的回饋 % 與上限計算"+(noRate?"；"+noRate+" 張有消費的卡還沒設回饋 %（設定 › 卡片）":"")+"，實際以銀行入帳為準";
+      sm.append(a,b); box.appendChild(sm); }
+    $("brkCount").textContent=its.length?its.length+" 筆":"";
+    if(!its.length){ const e=document.createElement("div"); e.className="empty"; e.textContent="這個月還沒有記錄。記下第一筆後，這裡會依卡片、銀行、分類分開統計。"; box.appendChild(e); return; }
+    const g=new Map(); its.forEach(x=>{ const bank=bankOf(x); let key,label,bk; if(brkMode==="card"){key=x.cardName;label=x.cardName||"未指定";bk=bank;} else if(brkMode==="bank"){key=bank;label=bank;bk=bank;} else {key=x.category;label=x.category;bk=null;}
+      const o=g.get(key)||{label,bank:bk,v:0,n:0}; o.v+=x.amount; o.n++; g.set(key,o); });
+    const max=Math.max(...[...g.values()].map(o=>o.v),1);
+    [...g.values()].sort((a,b)=>b.v-a.v).forEach(o=>{
+      const r=document.createElement("div"); r.className="brow"; const n=document.createElement("div"); n.className="n";
+      if(brkMode==="bank") n.appendChild(badge(o.label)); else { if(o.bank) n.appendChild(badge(o.bank)); const s=document.createElement("span"); s.textContent=brkMode==="card"?dispName(D.cards.find(k=>k.name===o.label)||{name:o.label}):o.label; n.appendChild(s); }
+      const v=document.createElement("div"); v.className="v"; v.textContent="NT$ "+fmt(o.v); const sm=document.createElement("small"); sm.textContent=(total?o.v/total*100:0).toFixed(0)+"%・"+o.n+" 筆"; v.appendChild(sm);
+      let rv=null; if(brkMode==="card" && est[o.label]!=null) rv=est[o.label];
+      if(brkMode==="bank"){ const cs=D.cards.filter(c=>c.bank===o.label && est[c.name]!=null); if(cs.length) rv=cs.reduce((a,c)=>a+est[c.name],0); }
+      if(rv!=null){ const rb=document.createElement("span"); rb.className="rb"; rb.textContent="・回饋 "+fmt(rv); sm.appendChild(rb); }
+      const t=document.createElement("div"); t.className="t"; const i=document.createElement("i"); i.style.width=Math.max(2,o.v/max*100)+"%"; i.style.background=o.bank?bankColor(o.bank):"var(--gold)"; t.appendChild(i);
+      r.append(n,v,t); box.appendChild(r); });
+  }
+  let lgMode="new"; try{ lgMode=localStorage.getItem("cf-lgmode")||"new"; }catch(e){}
+  function renderLedger(){
+    $("lgSort").value=lgMode;
+    const box=$("ledger"); box.textContent=""; const q=($("lgSearch").value||"").trim().toLowerCase();
+    const lc=$("lgCard"), cur=lc.value; lc.innerHTML='<option value="">全部卡片</option>'+[...new Set(monthItems().map(x=>x.cardName))].map(n=>'<option>'+String(n).replace(/&/g,'&amp;').replace(/</g,'&lt;')+'</option>').join(""); if([...lc.options].some(o=>o.value===cur)) lc.value=cur;
+    const its=monthItems().filter(x=>(!lc.value||x.cardName===lc.value) && (!q || [x.note,x.cardName,x.category,bankOf(x),String(x.amount)].join(" ").toLowerCase().includes(q)));
+    $("lgCount").textContent=its.length?"共 NT$ "+fmt(its.reduce((a,x)=>a+x.amount,0)):"";
+    $("vLgN").textContent=monthItems().length||"";
+    if(!its.length){ const e=document.createElement("div"); e.className="empty"; e.textContent="還沒有記錄。上面輸入金額、選卡片和分類，按「記下來」就會出現在這裡。"; box.appendChild(e); return; }
+    const wd=["日","一","二","三","四","五","六"], dlab=d=>Number(d.slice(5,7))+"/"+Number(d.slice(8))+"（"+wd[new Date(d+"T00:00:00").getDay()]+"）"+(d===TODAY?"・今天":"");
+    const newer=(a,b)=>b.date.localeCompare(a.date)||b.ts-a.ts;
+    const gkey={new:x=>x.date,old:x=>x.date,bank:x=>bankOf(x),card:x=>x.cardName,amt:()=>"依金額"}[lgMode]||(x=>x.date);
+    const srt=lgMode==="old"?(a,b)=>-newer(a,b):lgMode==="amt"?(a,b)=>b.amount-a.amount:newer;
+    const byDay=new Map(); its.slice().sort(srt).forEach(x=>{ const k=gkey(x); if(!byDay.has(k)) byDay.set(k,[]); byDay.get(k).push(x); });
+    if(lgMode==="bank"||lgMode==="card"){ const tot=l=>l.reduce((a,x)=>a+x.amount,0); const arr=[...byDay.entries()].sort((a,b)=>tot(b[1])-tot(a[1])); byDay.clear(); arr.forEach(([k,v])=>byDay.set(k,v)); }
+    byDay.forEach((list,d)=>{
+      const day=document.createElement("div"); day.className="day"; const h=document.createElement("div"); h.className="dayh";
+      const l=document.createElement("span");
+      if(lgMode==="new"||lgMode==="old") l.textContent=dlab(d);
+      else if(lgMode==="bank"){ l.appendChild(badge(d)); l.append(" "+list.length+" 筆"); }
+      else l.textContent=d+(lgMode==="card"?"・"+list.length+" 筆":"");
+      const r=document.createElement("span"); r.className="num"; r.textContent="NT$ "+fmt(list.reduce((a,x)=>a+x.amount,0)); h.append(l,r); day.appendChild(h);
+      list.forEach(x=>{
+        const it=document.createElement("div"); it.className="item";
+        const w=document.createElement("div"); w.className="what"; w.textContent=x.note||x.category;
+        const a=document.createElement("div"); a.className="amt2"; a.textContent=fmt(x.amount);
+        const m=document.createElement("div"); m.className="meta"; m.appendChild(badge(bankOf(x))); const cn=document.createElement("span"); cn.textContent=(lgMode!=="new"&&lgMode!=="old"?Number(x.date.slice(5,7))+"/"+Number(x.date.slice(8))+"・":"")+x.cardName+(x.note?"・"+x.category:"")+(x.oamt!=null?"・"+x.ocur+" "+fmt(x.oamt):"")+(x.tripId&&tripOf(x)?"・旅行："+tripOf(x).name:"")+(x.advance?"・代墊":""); m.appendChild(cn);
+        const ops=document.createElement("div"); ops.className="ops";
+        const eb=document.createElement("button"); eb.type="button"; eb.textContent="編輯"; eb.addEventListener("click",()=>startEdit(x));
+        const del=document.createElement("button"); del.type="button"; del.textContent="刪除";
+        del.addEventListener("click",()=>{ if(!del.classList.contains("arm")){ del.classList.add("arm"); del.textContent="確定刪除？"; setTimeout(()=>{del.classList.remove("arm");del.textContent="刪除";},3000); return; }
+          act(d=>{ d.records=d.records.filter(k=>k.id!==x.id); }, "已刪除").then(ok=>{ if(ok && editId===x.id) endEdit(); }); });
+        ops.append(eb,del); it.append(w,a,m,ops); day.appendChild(it); });
+      box.appendChild(day); });
+  }
+  // 卡片順序：按住「⋮⋮」拖曳（手機長按約 0.25 秒後開始拖）
+  function dragInit(d, hd){
+    let timer=null, drag=false, sy=0;
+    const move=e=>{ if(!drag){ if(Math.abs(e.clientY-sy)>10){ clearTimeout(timer); end(); } return; }
+      e.preventDefault(); const box=d.parentNode; const sibs=[...box.children].filter(x=>x!==d&&!x.hidden&&x.tagName==="DETAILS");
+      const tgt=sibs.find(x=>{ const r=x.getBoundingClientRect(); return e.clientY<r.top+r.height/2; }); if(box.children[[...box.children].indexOf(d)+1]!==tgt) box.insertBefore(d, tgt||null);
+      if(e.clientY<90) window.scrollBy(0,-12); else if(e.clientY>window.innerHeight-140) window.scrollBy(0,12); };
+    const end=()=>{ clearTimeout(timer); window.removeEventListener("pointermove",move); window.removeEventListener("pointerup",end); window.removeEventListener("pointercancel",end);
+      if(drag){ drag=false; d.classList.remove("dragging"); document.body.classList.remove("nosel"); cardDirty(); } };
+    hd.addEventListener("click",e=>{ e.preventDefault(); e.stopPropagation(); });
+    hd.addEventListener("contextmenu",e=>e.preventDefault());
+    hd.addEventListener("pointerdown",e=>{ e.stopPropagation(); sy=e.clientY;
+      window.addEventListener("pointermove",move,{passive:false}); window.addEventListener("pointerup",end); window.addEventListener("pointercancel",end);
+      timer=setTimeout(()=>{ drag=true; d.classList.add("dragging"); document.body.classList.add("nosel"); if(navigator.vibrate) navigator.vibrate(12); }, e.pointerType==="mouse"?0:250); });
+  }
+  function renderCardEdit(list, openId){
+    const box=$("cardEdit");
+    list = list || D.cards;
+    const q=($("ceSearch").value||"").trim().toLowerCase();
+    box.textContent="";
+    list.forEach(c=>{
+      const d=document.createElement("details"); d.className="pcard"+(c.parentId?" pool":""); d.dataset.id=c.id; d.dataset.parent=c.parentId||""; d.dataset.cat=c.catalogId||""; d.dataset.chk=c.catalogChecked||"";
+      if(c.id===openId) d.open=true;
+      if(q && !(c.bank+c.name).toLowerCase().includes(q)) d.hidden=true;
+      const sm=document.createElement("summary"); sm.appendChild(badge(c.bank));
+      const nm0=document.createElement("span"); nm0.className="nm"; nm0.textContent=dispName(c); sm.appendChild(nm0); if(c.parentId){ const pt=document.createElement("span"); pt.className="pooltag"; pt.textContent="分池"; sm.appendChild(pt); }
+      if(catNewer(c)){ const up=document.createElement("span"); up.className="upd"; up.textContent="有更新"; sm.appendChild(up); }
+      const mt=document.createElement("span"); mt.className="mt"; mt.textContent=c.cap?"上限 "+fmt(c.cap):"未設上限"; sm.appendChild(mt);
+      d.dataset.fav=c.fav?"1":"";
+      const ord=document.createElement("span"); ord.className="ord";
+      const fv=document.createElement("button"); fv.type="button"; fv.className="fav"; fv.title="常用卡"; fv.textContent=c.fav?"★":"☆"; fv.setAttribute("aria-pressed",String(!!c.fav)); fv.setAttribute("aria-label","設為常用卡");
+      fv.addEventListener("click",ev=>{ ev.preventDefault(); ev.stopPropagation(); d.dataset.fav=d.dataset.fav?"":"1"; fv.setAttribute("aria-pressed",String(!!d.dataset.fav)); fv.textContent=d.dataset.fav?"★":"☆"; cardDirty(); });
+      const hd=document.createElement("span"); hd.className="grip"; hd.textContent="⋮⋮"; hd.title="按住拖曳調整順序"; hd.setAttribute("aria-label","按住拖曳調整順序"); hd.setAttribute("role","button");
+      dragInit(d,hd);
+      ord.append(fv,hd); sm.appendChild(ord);
+      d.appendChild(sm);
+      const w=document.createElement("div"); w.className="cedit";
+      const sel=document.createElement("select"); sel.className="inp f-bank"; sel.setAttribute("aria-label","銀行");
+      Object.keys(BANKS).forEach(b=>{ const o=document.createElement("option"); o.value=b; o.textContent=b; if(b===c.bank) o.selected=true; sel.appendChild(o); });
+      const nm=document.createElement("input"); nm.className="inp f-name"; nm.value=c.name; nm.setAttribute("aria-label","卡名"); nm.maxLength=40;
+      nm.addEventListener("input",()=>{ nm0.textContent=dispName({name:nm.value,parentId:c.parentId}); });
+      const del=document.createElement("button"); del.type="button"; del.className="del"; del.textContent="移除";
+      del.addEventListener("click",()=>{ if(!del.classList.contains("arm")){ del.classList.add("arm"); del.textContent="確定？"; setTimeout(()=>{del.classList.remove("arm");del.textContent="移除";},3000); return; } d.remove(); });
+      const row=document.createElement("div"); row.className="row3";
+      const mk=(lab,cls,val,ph,mode)=>{ const l=document.createElement("label"); l.textContent=lab; const i=document.createElement("input"); i.className="inp num "+cls; i.value=val==null?"":val; i.placeholder=ph; if(mode) i.inputMode=mode; l.appendChild(i); return l; };
+      row.append(mk("每期上限","f-cap",c.cap,"例如 10000","numeric"), mk("結帳日","f-cyc",c.cycleDay,"留空＝月","numeric"), mk("限定分類","f-cats",(c.cats||[]).join(","),"例如 網購,餐飲"));
+      const rr=document.createElement("div"); rr.className="row3";
+      rr.append(mk("一般回饋 %","f-rb",c.rBase,"例如 1","decimal"), mk("加碼回饋 %","f-rx",c.rBonus,"例如 4","decimal"), mk("加碼上限（元）","f-rc",c.rCap,"例如 1000","numeric"));
+      const el=document.createElement("label"); el.textContent="卡片到期（月/年，例如 05/28）"; const ei=document.createElement("input"); ei.className="inp num f-exp"; ei.placeholder="MM/YY"; ei.inputMode="numeric"; ei.maxLength=5; ei.value=c.exp?c.exp.slice(5)+"/"+c.exp.slice(2,4):""; el.appendChild(ei); row.appendChild(el);
+      const nl=document.createElement("label"); nl.className="full"; nl.textContent="回饋說明"; const ni=document.createElement("input"); ni.className="inp f-note"; ni.value=c.note||""; ni.placeholder="例如 國內 3%，上限 300 元"; nl.appendChild(ni);
+      w.append(sel,nm,del,row,rr,nl);
+      const sp=document.createElement("div"); sp.className="splitbox full";
+      const st=document.createElement("div"); st.className="hint"; st.textContent=c.parentId?"這是「"+(rootOf(c).name||"主卡")+"」的通路額度池：自己的上限、回饋 %，卡號和主卡共用。":"同一張卡不同通路的回饋上限分開算？拆成額度池，記帳時選對應的池，就會分開計算上限和回饋。";
+      sp.appendChild(st);
+      if(!c.parentId){ const sr=document.createElement("div"); sr.className="exrow";
+        const si=document.createElement("input"); si.className="inp"; si.placeholder="通路名稱，例如 LINE Pay、蝦皮&指定通路"; si.maxLength=20;
+        const sb=document.createElement("button"); sb.type="button"; sb.className="btn ghost"; sb.textContent="＋ 拆出額度池";
+        sb.addEventListener("click",()=>{ const ch=si.value.trim(); if(!ch){ toast("先填通路名稱",true); si.focus(); return; }
+          const list2=readCardEdit(); const i=list2.findIndex(x=>x.id===c.id); const base=list2[i]||c;
+          const p={id:uid(), parentId:c.id, bank:base.bank, name:base.name.replace(/\s*[–-]\s*[^–-]*$/,"")+" – "+ch, cap:null, cycleDay:base.cycleDay, cats:[], note:"", rBase:base.rBase, rBonus:null, rCap:null, catalogId:base.catalogId, catalogChecked:base.catalogChecked};
+          let j=i+1; while(j<list2.length && list2[j].parentId===c.id) j++; list2.splice(j,0,p);
+          renderCardEdit(list2, p.id); toast("已拆出「"+ch+"」，填好上限與回饋 % 後按「儲存卡片設定」"); });
+        sr.append(si,sb); sp.appendChild(sr);
+        const kids=(list||[]).filter(x=>x.parentId===c.id).length; if(kids){ const kt=document.createElement("div"); kt.className="hint"; kt.textContent="已拆成 "+kids+" 個額度池。主卡本身＝其他一般消費。"; sp.appendChild(kt); }
+      }
+      w.appendChild(sp);
+      const k=catOf(c);
+      if(k){
+        w.appendChild(dbInfo(k));
+        if(catNewer(c)){ const ap=document.createElement("button"); ap.type="button"; ap.className="btn ghost full"; ap.textContent="套用資料庫最新規則（上限、限定分類、說明）";
+          ap.addEventListener("click",()=>{ const list2=readCardEdit(); const i=list2.findIndex(x=>x.id===c.id); if(i>=0){ list2[i]=cardFromCatalog(k, Object.assign({}, list2[i])); list2[i].name=list2[i].name; } renderCardEdit(list2, c.id); toast("已套用，按「儲存卡片設定」才會生效"); });
+          w.appendChild(ap); }
+      } else {
+        const tip=document.createElement("div"); tip.className="hint full"; tip.textContent="這張卡沒有連到資料庫，回饋規則要自己維護。"; w.appendChild(tip);
+      }
+      const fold=document.createElement("button"); fold.type="button"; fold.className="fold"; fold.textContent="收合 ▴";
+      fold.addEventListener("click",()=>{ d.open=false; d.scrollIntoView({block:"nearest"}); });
+      w.appendChild(fold);
+      d.appendChild(w); box.appendChild(d);
+    });
+  }
+  function renderInc(){
+    const box=$("incList"); if(!box) return; box.textContent="";
+    const xs=(D.incomes||[]).filter(x=>x.date.slice(0,7)===M).sort((a,b)=>b.date.localeCompare(a.date)||b.ts-a.ts);
+    const yr=(D.incomes||[]).filter(x=>x.date.slice(0,4)===M.slice(0,4)).reduce((a,x)=>a+x.amount,0);
+    $("incSum").textContent=monLabel(M)+" NT$ "+fmt(xs.reduce((a,x)=>a+x.amount,0))+"・全年 NT$ "+fmt(yr);
+    if(!xs.length){ const e=document.createElement("div"); e.className="empty"; e.textContent="這個月還沒有記其他收入。"; box.appendChild(e); return; }
+    xs.forEach(x=>{ const it=document.createElement("div"); it.className="item";
+      const w=document.createElement("div"); w.className="what"; w.textContent=srcName(x.source)+(x.note?"・"+x.note:"");
+      const a=document.createElement("div"); a.className="amt2"; a.style.color="var(--ok)"; a.textContent="+"+fmt(x.amount);
+      const m=document.createElement("div"); m.className="meta"; m.textContent=Number(x.date.slice(5,7))+"/"+Number(x.date.slice(8));
+      const ops=document.createElement("div"); ops.className="ops"; const del=document.createElement("button"); del.type="button"; del.textContent="刪除";
+      del.addEventListener("click",()=>{ if(!del.classList.contains("arm")){ del.classList.add("arm"); del.textContent="確定刪除？"; setTimeout(()=>{del.classList.remove("arm"); del.textContent="刪除";},3000); return; }
+        act(d=>{ d.incomes=(d.incomes||[]).filter(k=>k.id!==x.id); }, "已刪除"); });
+      const ed=document.createElement("button"); ed.type="button"; ed.textContent="編輯"; ed.addEventListener("click",()=>editInc(x));
+      ops.append(ed,del); it.append(w,a,m,ops); box.appendChild(it); });
+  }
+  let incEditId=null;
+  function editInc(x){   // 收入也可以改：帶回上面的收入表單，存檔時更新同一筆
+    incEditId=x.id; incSrc=srcName(x.source); goPage("rec"); renderIncChips(); setEntryMode("inc");
+    $("incAmt").value=x.amount; $("incDate").value=x.date; $("incNote").value=x.note||"";
+    $("incSave").textContent="儲存修改"; $("incCancel").hidden=false;
+    setTimeout(()=>$("incAmt").focus(),300);
+  }
+  function endIncEdit(){ incEditId=null; $("incSave").textContent="記下這筆收入"; $("incCancel").hidden=true; $("incAmt").value=""; $("incNote").value=""; $("incDate").value=TODAY; }
+  function renderAll(){ try{ depRemind(); }catch(e){} try{ recRemind(); }catch(e){} renderInc(); renderPk(); renderSummary(); renderChips(); renderCaps(); renderBreakdown(); renderLedger(); renderTrip(); renderTripRow(); }
+
+  /* ====== 卡片資料庫（大家共用，回饋規則由管理員更新） ====== */
+  let CATALOG = {cards:[], updated:null};
+  async function loadCatalog(){
+    try{ const r=await fetch(LLAPI+"/api/catalog",{cache:"no-store"}); if(r.ok){ const j=await r.json(); if(j&&Array.isArray(j.cards)&&j.cards.length){ CATALOG=j; return; } } }catch(e){}
+    try{ const r=await fetch("catalog.json",{cache:"no-store"}); if(r.ok) CATALOG=await r.json(); }catch(e){}
+  }
+  const catOf = c => c && c.catalogId ? CATALOG.cards.find(k=>k.id===c.catalogId) : null;
+  const catNewer = c => { const k=catOf(c); return !!(k && k.checked && (!c.catalogChecked || k.checked > c.catalogChecked)); };
+  const confTxt = {high:"可信度高",medium:"可信度中",low:"可信度低，請自行確認"};
+  function catNote(k){ return (k.bonus||"").slice(0,60); }
+  function dbInfo(k){
+    const box=document.createElement("div"); box.className="dbinfo";
+    const a=document.createElement("div"); a.textContent="資料庫："+(k.bonus||"—"); box.appendChild(a);
+    const b=document.createElement("div");
+    const parts=[];
+    if(k.baseRate!=null) parts.push("一般 "+k.baseRate+"%");
+    if(k.rebateCap) parts.push("回饋上限 NT$ "+fmt(k.rebateCap));
+    if(k.spendCap) parts.push("約刷 NT$ "+fmt(k.spendCap)+" 達上限");
+    if(k.capBasis && k.capBasis!=="不明") parts.push("依"+k.capBasis);
+    if(k.validUntil) parts.push("活動到 "+k.validUntil);
+    b.textContent=parts.join("・")||"—"; box.appendChild(b);
+    const c=document.createElement("div");
+    const cf=document.createElement("span"); cf.className="conf "+(k.confidence||"low"); cf.textContent=confTxt[k.confidence]||"未確認"; c.appendChild(cf);
+    c.appendChild(document.createTextNode(" 查核日 "+(k.checked||"—")+" "));
+    if(k.source){ const l=document.createElement("a"); l.href=k.source; l.target="_blank"; l.rel="noopener"; l.textContent="來源"; c.appendChild(l); }
+    if(k.notes){ c.appendChild(document.createTextNode("・"+k.notes)); }
+    box.appendChild(c);
+    return box;
+  }
+  function renderPicker(){
+    const box=$("pickList"); box.textContent="";
+    const q=$("pickSearch").value.trim().toLowerCase();
+    const mine=new Set(readCardEdit().map(c=>c.catalogId).filter(Boolean));
+    const list=CATALOG.cards.filter(k=>!q || (k.bank+k.name+(k.bonus||"")).toLowerCase().includes(q));
+    $("pickInfo").textContent = CATALOG.cards.length ? ("資料庫共 "+CATALOG.cards.length+" 張卡"+(CATALOG.updated?"，更新於 "+CATALOG.updated:"")+"。加入後可以再自己修改。") : "資料庫目前是空的。";
+    list.forEach(k=>{
+      const it=document.createElement("div"); it.className="pitem";
+      const t1=document.createElement("div"); t1.className="t1"; t1.appendChild(badge(k.bank)); const s=document.createElement("span"); s.textContent=k.name; t1.appendChild(s);
+      const btn=document.createElement("button"); btn.type="button"; btn.textContent=mine.has(k.id)?"已加入":"加入"; btn.disabled=mine.has(k.id);
+      btn.addEventListener("click",()=>{ addFromCatalog(k); btn.textContent="已加入"; btn.disabled=true; });
+      const t2=document.createElement("div"); t2.className="t2"; t2.textContent=k.bonus||"";
+      const t3=document.createElement("div"); t3.className="t3";
+      const cf=document.createElement("span"); cf.className="conf "+(k.confidence||"low"); cf.textContent=confTxt[k.confidence]||"未確認"; t3.appendChild(cf);
+      const sc=document.createElement("span"); sc.textContent=(k.spendCap?"約刷 NT$ "+fmt(k.spendCap)+" 達上限":"無上限或未載明")+"・查核 "+(k.checked||"—"); t3.appendChild(sc);
+      if(k.source){ const l=document.createElement("a"); l.href=k.source; l.target="_blank"; l.rel="noopener"; l.textContent="來源"; t3.appendChild(l); }
+      it.append(t1,btn,t2,t3); box.appendChild(it);
+    });
+    if(!list.length && CATALOG.cards.length){ const e=document.createElement("div"); e.className="empty"; e.textContent="找不到，可以按「自己新增」。"; box.appendChild(e); }
+  }
+  /* ====== 檢查回饋更新：重新抓共用資料庫，比對自己的卡 ====== */
+  const normName = t => String(t||"").replace(/[·・.]\s*\d{4}/g,"").replace(/（[^）]*）|\([^)]*\)/g,"").replace(/信用卡|聯名卡|現金回饋|卡|\s|–.*$/g,"").toLowerCase();
+  function guessCatalog(c){
+    let best=null, score=0; const a=normName(c.name);
+    CATALOG.cards.filter(k=>k.bank===c.bank).forEach(k=>{ const b=normName(k.name); let sc=0;
+      for(let L=Math.min(a.length,b.length); L>=2 && !sc; L--) for(let i=0;i+L<=a.length;i++) if(b.includes(a.substr(i,L))){ sc=L; break; }
+      if(sc>score){ score=sc; best=k; } });
+    return score>=2 ? best : null;
+  }
+  const ruleTxt = x => [x.rBase!=null?"一般 "+x.rBase+"%":"一般 —", x.rBonus?"加碼 "+x.rBonus+"%":"", x.rCap?"加碼上限 "+fmt(x.rCap):"", x.cap?"每期 "+fmt(x.cap):""].filter(Boolean).join("・");
+  let UPD=[];
+  async function checkUpdates(){
+    const btn=$("updBtn"); btn.disabled=true; btn.textContent="檢查中…";
+    try{ await loadCatalog(); } finally { btn.disabled=false; btn.textContent="檢查回饋更新"; }
+    UPD=[]; const box=$("updList"); box.textContent="";
+    D.cards.filter(c=>rootOf(c)===c).forEach(c=>{
+      let k=catOf(c), kind="upd";
+      if(!k){ k=guessCatalog(c); kind="link"; if(!k) return; }
+      else if(!catNewer(c)) return;
+      const nx=cardFromCatalog(k, Object.assign({},c));
+      const pooled=D.cards.some(x=>x.parentId===c.id); if(pooled) kind="info";
+      if(kind==="upd" && ruleTxt(nx)===ruleTxt(c)) { UPD.push({c,k,kind:"silent"}); return; }
+      UPD.push({c,k,kind});
+      const r=document.createElement("label"); r.className="updrow";
+      const cb=document.createElement("input"); cb.type="checkbox"; cb.checked=kind!=="info"; cb.disabled=kind==="info"; cb.dataset.i=UPD.length-1;
+      const t=document.createElement("div");
+      const h=document.createElement("div"); h.className="n"; h.appendChild(badge(c.bank)); const nm=document.createElement("b"); nm.textContent=c.name; h.appendChild(nm);
+      const tag=document.createElement("span"); tag.className="upd"; tag.textContent=kind==="link"?"可連結資料庫":kind==="info"?"已拆額度池・僅供參考":"規則有更新"; h.appendChild(tag);
+      const a=document.createElement("div"); a.className="hint"; a.textContent="目前："+(ruleTxt(c)||"未設定");
+      const b=document.createElement("div"); b.className="hint nw"; b.textContent="資料庫："+ruleTxt(nx)+(kind==="link"?"（對應「"+k.name+"」）":"");
+      const n=document.createElement("div"); n.className="hint"; n.textContent=(k.bonus||"")+(k.validUntil?"｜活動到 "+k.validUntil:"")+(k.confidence?"｜"+(confTxt[k.confidence]||""):"");
+      t.append(h,a,b,n); if(kind==="info"){ const z=document.createElement("div"); z.className="hint"; z.textContent="這張卡已拆成通路額度池，請依上面規則到「設定 › 卡片」手動調整各池的 % 與上限。"; t.appendChild(z); } r.append(cb,t); box.appendChild(r);
+    });
+    const shown=UPD.filter(u=>u.kind!=="silent"&&u.kind!=="info").length;
+    const mine=new Set(D.cards.map(c=>c.catalogId).filter(Boolean)); const others=CATALOG.cards.filter(k=>!mine.has(k.id)).length;
+    $("updInfo").textContent="資料庫"+(CATALOG.updated?"更新於 "+CATALOG.updated:"")+"，共 "+CATALOG.cards.length+" 張卡。"+(shown?"有 "+shown+" 張卡可以更新：":"你的卡都已經是最新規則。")+(others?"資料庫另有 "+others+" 張你還沒加的卡。":"");
+    $("updApply").hidden=!UPD.some(u=>u.kind!=="silent"); $("updApply").textContent=shown?"套用勾選的更新":"知道了，先不提醒"; $("updSheet").hidden=false;
+  }
+  $("updBtn").addEventListener("click",checkUpdates);
+  $("updClose").addEventListener("click",()=>{ $("updSheet").hidden=true; });
+  $("updSheet").addEventListener("click",e=>{ if(e.target.id==="updSheet") $("updSheet").hidden=true; });
+  $("updPick").addEventListener("click",()=>{ $("updSheet").hidden=true; goPage("cards"); setTimeout(()=>{ if($("picker").hidden) $("pickBtn").click(); },80); });
+  $("updApply").addEventListener("click",async()=>{
+    const pick=new Set([...$("updList").querySelectorAll("input:checked")].map(x=>+x.dataset.i));
+    const todo=UPD.filter((u,i)=>pick.has(i) || u.kind==="silent" || u.kind==="info"); if(!todo.length){ $("updSheet").hidden=true; return; }
+    const ok=await act(d=>{ todo.forEach(u=>{ const i=d.cards.findIndex(x=>x.id===u.c.id); if(i<0) return; const old=d.cards[i];
+      if(u.kind==="info"){ old.catalogId=u.k.id; old.catalogChecked=u.k.checked||null; return; }
+      const nx=cardFromCatalog(u.k, Object.assign({},old)); nx.name=old.name; nx.cycleDay=old.cycleDay; if(!(u.k.bonusCats||[]).length) nx.cats=old.cats||[];
+      if(!nx.cap && old.cap) nx.cap=old.cap; d.cards[i]=nx; }); }, "已套用 "+todo.filter(u=>u.kind!=="silent").length+" 張卡的最新回饋規則");
+    if(ok){ $("updSheet").hidden=true; renderAll(); renderCardEdit(); }
+  });
+  function cardFromCatalog(k, base){
+    return Object.assign({}, base||{id:uid(), cycleDay:null}, {bank:k.bank, name: base&&base.name || k.name, cap:k.spendCap||null, cats:(k.bonusCats||[]).slice(),
+      note:catNote(k), catalogId:k.id, catalogChecked:k.checked||null, rBase:k.baseRate!=null?k.baseRate:null, rBonus:k.bonusRate!=null?k.bonusRate:null, rCap:k.rebateCap!=null?k.rebateCap:null});
+  }
+  function addFromCatalog(k){
+    const list=readCardEdit(); const c=cardFromCatalog(k); list.unshift(c);
+    renderCardEdit(list, c.id);
+    toast("已加入 "+k.name+(k.capBasis==="帳單週期"?"：這張卡依帳單週期計算，請填結帳日":"")+"，記得按「儲存卡片設定」");
+  }
+
+  function startEdit(x){ editId=x.id; $("amount").value=x.oamt!=null?x.oamt:x.amount; fxCur=x.oamt!=null?x.ocur:null; $("tripSel").dataset.touched="1"; $("tripSel").value=x.tripId||""; $("advChk").checked=!!x.advance; $("date").value=x.date; $("note").value=x.note||""; const c=cardOf(x); if(c) selCard=c.id; selCat=x.category;
+    renderTripRow(); $("tripSel").value=x.tripId||""; renderTripRow(); $("formTitle").textContent="編輯這筆"; $("saveBtn").textContent="更新"; $("cancelEdit").hidden=false; renderChips(); $("entry").scrollIntoView({behavior:"smooth",block:"start"}); goPage("rec"); $("amount").focus(); }
+  function endEdit(){ editId=null; delete $("tripSel").dataset.touched; $("advChk").checked=false; fxCur=null; setTimeout(renderTripRow,0); $("formTitle").textContent="記一筆"; $("saveBtn").textContent="記下來"; $("cancelEdit").hidden=true; $("amount").value=""; $("note").value=""; }
+
+  /* ====== 匯出／匯入 ====== */
+  function saveFile(name, text, type){ saveBlob(name, new Blob([text],{type})).catch(e=>toast("匯出沒有成功："+((e&&e.message)||""),true)); }
+  const csvCell = v => { v = v==null ? "" : String(v); return /[",\n]/.test(v) ? '"'+v.replace(/"/g,'""')+'"' : v; };
+
+  /* ====== 事件 ====== */
+  $("date").value=TODAY;
+  $("prevM").addEventListener("click",()=>{ M=shiftM(M,-1); renderAll(); });
+  $("nextM").addEventListener("click",()=>{ M=shiftM(M,1); renderAll(); });
+  $("cancelEdit").addEventListener("click",endEdit);
+  [["tabCard","card"],["tabBank","bank"],["tabCat","cat"]].forEach(([id,mode])=>$(id).addEventListener("click",()=>{ brkMode=mode; ["tabCard","tabBank","tabCat"].forEach(t=>$(t).setAttribute("aria-selected",String(t===id))); renderBreakdown(); }));
+  $("entry").addEventListener("submit",async ev=>{
+    ev.preventDefault();
+    const amt=evalAmount($("amount").value); if(!(amt>0)){ toast("請輸入金額，例如 350 或 120+85。",true); $("amount").focus(); return; }
+    const card=D.cards.find(c=>c.id===selCard); if(!card){ toast("請先選一張卡片（沒有的話到「設定」新增）。",true); return; }
+    const date=$("date").value||TODAY;
+    const rec={id:editId||uid(), date, amount:Math.round(amt*100)/100, cardId:card.id, cardName:card.name, bank:card.bank, category:selCat||"其他", note:$("note").value.trim(), ts:Date.now()};
+    const trip=(D.trips||[]).length ? curTrip() : null;
+    if(trip){ rec.tripId=trip.id; if($("advChk").checked) rec.advance=true;
+      if(fxCur){ const rate=fxRate(); if(!(rate>0)){ toast("還沒有 "+fxCur+" 的匯率，請到「旅行」分頁輸入",true); return; }
+        rec.oamt=Math.round(amt*100)/100; rec.ocur=fxCur; rec.rate=rate; rec.amount=Math.round(amt*rate); } }
+    const wasEdit=!!editId; $("saveBtn").disabled=true;
+    const ok = await act(d=>{ const i=d.records.findIndex(k=>k.id===rec.id); if(i>=0) d.records[i]=rec; else d.records.push(rec); });
+    $("saveBtn").disabled=false; if(!ok) return;
+    if(rec.date.slice(0,7)!==M){ M=rec.date.slice(0,7); renderAll(); }
+    const c2=D.cards.find(c=>c.id===card.id), u=c2&&c2.cap?capUse(c2):null;
+    toast((wasEdit?"已更新":"已記下")+" NT$ "+fmt(rec.amount)+"・"+card.name+(u?(u.left>=0?"（額度內還剩 "+fmt(u.left)+"）":"（已超過上限 NT$ "+fmt(-u.left)+"）"):""));
+    if(wasEdit) endEdit(); else { $("amount").value=""; $("note").value=""; }
+  });
+  $("budgetSave").addEventListener("click",()=>{ const n=evalAmount($("budgetAll").value); const v = n>0 ? Math.round(n) : null; act(d=>{ d.budget=v; }, v?"總預算已設為 NT$ "+fmt(v):"已取消總預算"); });
+  $("addCardBtn").addEventListener("click",()=>{ const list=readCardEdit(); const c={id:uid(),bank:"其他",name:"新卡片",cap:null,cycleDay:null,cats:[],note:""}; list.unshift(c); renderCardEdit(list,c.id); const last=$("cardEdit").firstElementChild; if(last){ last.querySelector(".f-name").select(); last.scrollIntoView({block:"center"}); } });
+  /* ====== 一鍵匯入：電腦讀過的信用卡帳單 → 卡片清單（只有銀行、卡名、末四碼；在電腦上就用你的密碼加密） ====== */
+  let IMP=[];
+  const b64u = t => { const b=atob(t), u=new Uint8Array(b.length); for(let i=0;i<b.length;i++) u[i]=b.charCodeAt(i); return u; };
+  async function openBlob(B){
+    const km=await crypto.subtle.importKey("raw",new TextEncoder().encode(PW),"PBKDF2",false,["deriveKey"]);
+    const k=await crypto.subtle.deriveKey({name:"PBKDF2",salt:b64u(B.salt),iterations:B.iter,hash:"SHA-256"},km,{name:"AES-GCM",length:256},false,["decrypt"]);
+    const pt=await crypto.subtle.decrypt({name:"AES-GCM",iv:b64u(B.iv)},k,b64u(B.ct));
+    return B.gz ? await new Response(new Blob([pt]).stream().pipeThrough(new DecompressionStream("gzip"))).text() : new TextDecoder().decode(pt);
+  }
+  const catBank = b => { const bs=[...new Set(CATALOG.cards.map(k=>k.bank))]; return bs.find(x=>x===b) || bs.find(x=>x.startsWith(b)||b.startsWith(x)) || b; };
+  async function loadImport(){
+    const box=$("impList"), info=$("impInfo"); box.textContent=""; info.textContent="讀取中…"; $("impGo").hidden=$("impAll").hidden=true;
+    try{
+      await loadCatalog();
+      const r=await fetch(LLAPI+"/api/ledger?page=cards",{headers:{"x-cf-user":encodeURIComponent(USER),"x-cf-key":encodeURIComponent(PW)},cache:"no-store"});
+      if(r.status===400){ info.textContent="隨手記網站還是舊版，請先更新網站。"; return; }
+      const j=await r.json();
+      if(!j.blob){ info.textContent="電腦還沒上傳你的卡片清單：電腦上的 LifeLedger 更新一次（或按「立即更新月報」）就會出現。"; return; }
+      const L=JSON.parse(await openBlob(j.blob)).cards||[];
+      const have=readCardEdit();
+      IMP=L.map(x=>{ const bank=catBank(x.bank), name=(x.name||"信用卡")+(x.last4?"・"+x.last4:"");
+        const dup=have.some(c=>(c.bank===bank||c.bank===x.bank) && ((x.last4&&String(c.name).includes(x.last4)) || normName(c.name)===normName(x.name)));
+        return {bank,name,x,dup}; });
+      info.textContent=IMP.length?("從你的帳單找到 "+IMP.length+" 張卡（資料至 "+(j.savedAt||"").slice(0,10)+"）。已經有的不會重複加；會自動對應卡片資料庫的回饋規則。"):"帳單裡沒有找到信用卡。";
+      IMP.forEach((it,i)=>{ const r=document.createElement("label"); r.className="updrow";
+        const cb=document.createElement("input"); cb.type="checkbox"; cb.dataset.i=i; cb.checked=!it.dup && it.x.mine!==false; cb.disabled=it.dup;
+        const t=document.createElement("div"); const h=document.createElement("div"); h.className="n"; h.appendChild(badge(it.bank)); const nm=document.createElement("b"); nm.textContent=it.name; h.appendChild(nm);
+        if(it.dup){ const tg=document.createElement("span"); tg.className="upd"; tg.textContent="已經有了"; h.appendChild(tg); }
+        const d=document.createElement("div"); d.className="hint"; d.textContent=(it.x.n?"近一年刷 "+it.x.n+" 筆":"")+(it.x.last?"・最近 "+it.x.last:"")+(it.x.mine===false?"・家人附卡":"");
+        t.append(h,d); r.append(cb,t); box.appendChild(r); });
+      $("impGo").hidden=$("impAll").hidden=!IMP.some(x=>!x.dup);
+    }catch(e){ info.textContent="讀不到卡片清單（"+e.message+"）。密碼改過的話，電腦的設定精靈【0b】要改成新密碼再更新一次。"; }
+  }
+  $("impBtn").addEventListener("click",()=>{ const p=$("impBox"); p.hidden=!p.hidden; $("picker").hidden=true; if(!p.hidden) loadImport(); });
+  $("impAll").addEventListener("click",()=>{ const cs=[...$("impList").querySelectorAll("input:not(:disabled)")]; const on=cs.some(c=>!c.checked); cs.forEach(c=>c.checked=on); });
+  $("impGo").addEventListener("click",()=>{
+    const pick=[...$("impList").querySelectorAll("input:checked:not(:disabled)")].map(c=>IMP[+c.dataset.i]); if(!pick.length){ toast("沒有勾選"); return; }
+    const list=readCardEdit(); let linked=0;
+    pick.slice().reverse().forEach(it=>{ const k=guessCatalog({bank:it.bank,name:it.x.name||""});
+      const c=k?cardFromCatalog(k,{id:uid(),cycleDay:null,name:it.name}):{id:uid(),bank:it.bank,name:it.name,cap:null,cycleDay:null,cats:[],note:"",rBase:null,rBonus:null,rCap:null};
+      c.bank=it.bank; c.name=it.name; if(k) linked++; list.unshift(c); });
+    renderCardEdit(list); $("impBox").hidden=true;
+    toast("已加入 "+pick.length+" 張卡（"+linked+" 張自動套用資料庫回饋）。請檢查一下，再按「儲存卡片設定」");
+  });
+  $("pickBtn").addEventListener("click",()=>{ const p=$("picker"); p.hidden=!p.hidden; if(!p.hidden){ renderPicker(); $("pickSearch").focus(); } });
+  $("pickSearch").addEventListener("input",renderPicker);
+  $("ceSearch").addEventListener("input",()=>{ const q=$("ceSearch").value.trim().toLowerCase(); for(const d of $("cardEdit").children){ const t=(d.querySelector(".f-bank").value+d.querySelector(".f-name").value).toLowerCase(); d.hidden=!!q && !t.includes(q); } });
+  $("chipSearch").addEventListener("input",renderChips);
+  $("chipMore").addEventListener("click",()=>{ chipAll=!chipAll; renderChips(); });
+  $("capSearch").addEventListener("input",renderCaps);
+  $("capMore").addEventListener("click",()=>{ capAll=!capAll; renderCaps(); });
+  $("lgSearch").addEventListener("input",renderLedger);
+  $("lgCard").addEventListener("change",renderLedger);
+  $("lgSort").addEventListener("change",()=>{ lgMode=$("lgSort").value; try{ localStorage.setItem("cf-lgmode",lgMode); }catch(e){} renderLedger(); });
+  /* ====================================================================
+     XLSX 產生器（不需外部套件）：樣式、欄寬、凍結窗格、合併儲存格
+     ==================================================================== */
+  const XL = (function(){
+    const BANKFILL = {"台新":"2A78D6","永豐":"EB6834","玉山":"1BAF7A","聯邦":"C98A00","中信":"D9608E","星展":"008300","國泰":"4A3AA7","富邦":"0E7C86","遠東":"1E6F5C","滙豐":"DB0011","其他":"6B7686"};
+    // 樣式表：fonts / fills / borders / cellXfs
+    const fonts = ['<font><sz val="11"/><name val="Microsoft JhengHei"/></font>',
+      '<font><b/><sz val="11"/><color rgb="FFFFFFFF"/><name val="Microsoft JhengHei"/></font>',
+      '<font><b/><sz val="18"/><color rgb="FF0E2035"/><name val="Microsoft JhengHei"/></font>',
+      '<font><sz val="10"/><color rgb="FF7B8494"/><name val="Microsoft JhengHei"/></font>',
+      '<font><b/><sz val="11"/><color rgb="FF121821"/><name val="Microsoft JhengHei"/></font>',
+      '<font><b/><sz val="16"/><color rgb="FF0E2035"/><name val="Microsoft JhengHei"/></font>',
+      '<font><b/><sz val="9"/><color rgb="FFC9A45C"/><name val="Microsoft JhengHei"/></font>',
+      '<font><sz val="10"/><color rgb="FF465061"/><name val="Microsoft JhengHei"/></font>'];
+    const fillsList = ['none','gray125','0E2035','F3F6FA','FFF6D6','E9EDF1'].concat(Object.values(BANKFILL));
+    const fills = fillsList.map((c,i)=> i===0?'<fill><patternFill patternType="none"/></fill>': i===1?'<fill><patternFill patternType="gray125"/></fill>':'<fill><patternFill patternType="solid"><fgColor rgb="FF'+c+'"/><bgColor indexed="64"/></patternFill></fill>');
+    const borders = ['<border><left/><right/><top/><bottom/><diagonal/></border>',
+      '<border><left/><right/><top/><bottom style="thin"><color rgb="FFE3E8EE"/></bottom><diagonal/></border>',
+      '<border><left/><right/><top style="medium"><color rgb="FF0E2035"/></top><bottom/><diagonal/></border>'];
+    const numFmts = {164:'#,##0', 165:'0.0%', 166:'yyyy/mm/dd', 167:'#,##0.00'};
+    const S = {}; const xfs = [];
+    function xf(name, o){ S[name]=xfs.length; xfs.push(o); }
+    const fi = c => fillsList.indexOf(c);
+    xf('d',{f:0}); xf('h',{f:1,fill:fi('0E2035'),al:'center'}); xf('title',{f:2}); xf('sub',{f:3}); xf('b',{f:4});
+    xf('num',{f:0,n:164,b:1}); xf('numb',{f:4,n:164,b:2}); xf('pct',{f:7,n:165,b:1}); xf('date',{f:0,n:166,b:1}); xf('txt',{f:0,b:1});
+    xf('tot',{f:4,b:2}); xf('pctb',{f:4,n:165,b:2}); xf('kpi',{f:5,n:164}); xf('kpil',{f:3}); xf('eyebrow',{f:6}); xf('fx',{f:7,n:167,b:1}); xf('sec',{f:4,fill:fi('E9EDF1')});
+    Object.keys(BANKFILL).forEach(b=>xf('bank_'+b,{f:1,fill:fi(BANKFILL[b]),al:'center',b:1}));
+    function stylesXml(){
+      return '<?xml version="1.0" encoding="UTF-8" standalone="yes"?><styleSheet xmlns="http://schemas.openxmlformats.org/spreadsheetml/2006/main">'
+        +'<numFmts count="'+Object.keys(numFmts).length+'">'+Object.entries(numFmts).map(([id,c])=>'<numFmt numFmtId="'+id+'" formatCode="'+esc(c)+'"/>').join('')+'</numFmts>'
+        +'<fonts count="'+fonts.length+'">'+fonts.join('')+'</fonts><fills count="'+fills.length+'">'+fills.join('')+'</fills>'
+        +'<borders count="'+borders.length+'">'+borders.join('')+'</borders><cellStyleXfs count="1"><xf numFmtId="0" fontId="0" fillId="0" borderId="0"/></cellStyleXfs>'
+        +'<cellXfs count="'+xfs.length+'">'+xfs.map(o=>'<xf numFmtId="'+(o.n||0)+'" fontId="'+(o.f||0)+'" fillId="'+(o.fill||0)+'" borderId="'+(o.b||0)+'" xfId="0"'
+          +(o.n?' applyNumberFormat="1"':'')+(o.f?' applyFont="1"':'')+(o.fill?' applyFill="1"':'')+(o.b?' applyBorder="1"':'')
+          +(o.al?' applyAlignment="1"><alignment horizontal="'+o.al+'" vertical="center"/></xf>':'><alignment vertical="center"/></xf>')).join('')+'</cellXfs>'
+        +'<cellStyles count="1"><cellStyle name="Normal" xfId="0" builtinId="0"/></cellStyles></styleSheet>';
+    }
+    function esc(s){ return String(s).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;').replace(/[\u0000-\u0008\u000B\u000C\u000E-\u001F]/g,''); }
+    function col(n){ let s=''; n++; while(n){ const m=(n-1)%26; s=String.fromCharCode(65+m)+s; n=Math.floor((n-1)/26); } return s; }
+    function serial(ymd){ const [y,m,d]=ymd.split('-').map(Number); return (Date.UTC(y,m-1,d)-Date.UTC(1899,11,30))/864e5; }
+    function sheetXml(sh){
+      const rows = sh.rows.map((row,ri)=>{
+        if(!row) return '';
+        const cells=row.map((c,ci)=>{
+          if(c==null || c==='') return '';
+          if(typeof c!=='object') c={v:c};
+          const ref=col(ci)+(ri+1), st=' s="'+(S[c.s]!=null?S[c.s]:0)+'"';
+          if(c.v==null || c.v==='') return '<c r="'+ref+'"'+st+'/>';
+          if(c.date) return '<c r="'+ref+'"'+st+'><v>'+serial(c.v)+'</v></c>';
+          if(typeof c.v==='number' && isFinite(c.v)) return '<c r="'+ref+'"'+st+'><v>'+c.v+'</v></c>';
+          return '<c r="'+ref+'"'+st+' t="inlineStr"><is><t xml:space="preserve">'+esc(c.v)+'</t></is></c>';
+        }).join('');
+        const ht = sh.heights && sh.heights[ri] ? ' ht="'+sh.heights[ri]+'" customHeight="1"' : '';
+        return '<row r="'+(ri+1)+'"'+ht+'>'+cells+'</row>';
+      }).join('');
+      const pane = sh.freeze ? '<sheetViews><sheetView workbookViewId="0" showGridLines="0"><pane ySplit="'+sh.freeze+'" topLeftCell="A'+(sh.freeze+1)+'" activePane="bottomLeft" state="frozen"/></sheetView></sheetViews>'
+                             : '<sheetViews><sheetView workbookViewId="0" showGridLines="0"/></sheetViews>';
+      const cols = sh.cols ? '<cols>'+sh.cols.map((w,i)=>'<col min="'+(i+1)+'" max="'+(i+1)+'" width="'+w+'" customWidth="1"/>').join('')+'</cols>' : '';
+      const merges = sh.merges && sh.merges.length ? '<mergeCells count="'+sh.merges.length+'">'+sh.merges.map(m=>'<mergeCell ref="'+m+'"/>').join('')+'</mergeCells>' : '';
+      const af = sh.autoFilter ? '<autoFilter ref="'+sh.autoFilter+'"/>' : '';
+      return '<?xml version="1.0" encoding="UTF-8" standalone="yes"?><worksheet xmlns="http://schemas.openxmlformats.org/spreadsheetml/2006/main" xmlns:r="http://schemas.openxmlformats.org/officeDocument/2006/relationships">'
+        +pane+'<sheetFormatPr defaultRowHeight="18"/>'+cols+'<sheetData>'+rows+'</sheetData>'+af+merges+'<pageMargins left="0.5" right="0.5" top="0.6" bottom="0.6" header="0.3" footer="0.3"/></worksheet>';
+    }
+    // --- 不壓縮的 zip ---
+    const CRC=(()=>{ const t=new Uint32Array(256); for(let n=0;n<256;n++){ let c=n; for(let k=0;k<8;k++) c = c&1 ? 0xEDB88320^(c>>>1) : c>>>1; t[n]=c>>>0; } return t; })();
+    const crc32 = b => { let c=0xFFFFFFFF; for(let i=0;i<b.length;i++) c=CRC[(c^b[i])&0xFF]^(c>>>8); return (c^0xFFFFFFFF)>>>0; };
+    function zip(files){
+      const enc=new TextEncoder(), parts=[], central=[]; let off=0;
+      const u16=n=>[n&255,(n>>>8)&255], u32=n=>[n&255,(n>>>8)&255,(n>>>16)&255,(n>>>24)&255];
+      files.forEach(f=>{
+        const name=enc.encode(f.name), data=typeof f.data==='string'?enc.encode(f.data):f.data, c=crc32(data);
+        const head=[0x50,0x4b,3,4, ...u16(20), ...u16(0x0800), ...u16(0), ...u16(0), ...u16(0x21), ...u32(c), ...u32(data.length), ...u32(data.length), ...u16(name.length), ...u16(0)];
+        parts.push(new Uint8Array(head), name, data);
+        central.push(new Uint8Array([0x50,0x4b,1,2, ...u16(20), ...u16(20), ...u16(0x0800), ...u16(0), ...u16(0), ...u16(0x21), ...u32(c), ...u32(data.length), ...u32(data.length), ...u16(name.length), ...u16(0), ...u16(0), ...u16(0), ...u16(0), ...u32(0), ...u32(off)]), name);
+        off += head.length + name.length + data.length;
+      });
+      const csize=central.reduce((a,b)=>a+b.length,0);
+      const end=new Uint8Array([0x50,0x4b,5,6, ...u16(0), ...u16(0), ...u16(files.length), ...u16(files.length), ...u32(csize), ...u32(off), ...u16(0)]);
+      return new Blob([...parts, ...central, end], {type:'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet'});
+    }
+    function build(sheets){
+      const files=[
+        {name:'[Content_Types].xml', data:'<?xml version="1.0" encoding="UTF-8" standalone="yes"?><Types xmlns="http://schemas.openxmlformats.org/package/2006/content-types"><Default Extension="rels" ContentType="application/vnd.openxmlformats-package.relationships+xml"/><Default Extension="xml" ContentType="application/xml"/><Override PartName="/xl/workbook.xml" ContentType="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet.main+xml"/><Override PartName="/xl/styles.xml" ContentType="application/vnd.openxmlformats-officedocument.spreadsheetml.styles+xml"/>'
+          +sheets.map((s,i)=>'<Override PartName="/xl/worksheets/sheet'+(i+1)+'.xml" ContentType="application/vnd.openxmlformats-officedocument.spreadsheetml.worksheet+xml"/>').join('')+'</Types>'},
+        {name:'_rels/.rels', data:'<?xml version="1.0" encoding="UTF-8" standalone="yes"?><Relationships xmlns="http://schemas.openxmlformats.org/package/2006/relationships"><Relationship Id="rId1" Type="http://schemas.openxmlformats.org/officeDocument/2006/relationships/officeDocument" Target="xl/workbook.xml"/></Relationships>'},
+        {name:'xl/workbook.xml', data:'<?xml version="1.0" encoding="UTF-8" standalone="yes"?><workbook xmlns="http://schemas.openxmlformats.org/spreadsheetml/2006/main" xmlns:r="http://schemas.openxmlformats.org/officeDocument/2006/relationships"><sheets>'
+          +sheets.map((s,i)=>'<sheet name="'+esc(s.name)+'" sheetId="'+(i+1)+'" r:id="rId'+(i+1)+'"/>').join('')+'</sheets>'
+          +(sheets.some(s=>s.autoFilter)?'<definedNames>'+sheets.map((s,i)=>s.autoFilter?'<definedName name="_xlnm._FilterDatabase" localSheetId="'+i+'" hidden="1">\''+esc(s.name)+'\'!$'+s.autoFilter.replace(/([A-Z]+)(\d+)/g,'$1$$$2').replace(':',':$')+'</definedName>':'').join('')+'</definedNames>':'')
+          +'</workbook>'},
+        {name:'xl/_rels/workbook.xml.rels', data:'<?xml version="1.0" encoding="UTF-8" standalone="yes"?><Relationships xmlns="http://schemas.openxmlformats.org/package/2006/relationships">'
+          +sheets.map((s,i)=>'<Relationship Id="rId'+(i+1)+'" Type="http://schemas.openxmlformats.org/officeDocument/2006/relationships/worksheet" Target="worksheets/sheet'+(i+1)+'.xml"/>').join('')
+          +'<Relationship Id="rId'+(sheets.length+1)+'" Type="http://schemas.openxmlformats.org/officeDocument/2006/relationships/styles" Target="styles.xml"/></Relationships>'},
+        {name:'xl/styles.xml', data:stylesXml()}
+      ];
+      sheets.forEach((s,i)=>files.push({name:'xl/worksheets/sheet'+(i+1)+'.xml', data:sheetXml(s)}));
+      return zip(files);
+    }
+    return {build, col};
+  })();
+
+  /* ====== 檔案下載（正式版用下載連結；預覽環境改走 downloads 能力） ====== */
+  async function saveBlob(name, blob){
+    try{
+      if(window.claude && window.claude.use){ const dl=await window.claude.use("downloads"); if(dl){ await dl.save({filename:name, data:blob}); return; } }
+    }catch(e){ if(e && e.code && e.code!=="not_granted") throw e; }
+    const a=document.createElement("a"); a.href=URL.createObjectURL(blob); a.download=name;
+    document.body.appendChild(a); a.click(); setTimeout(()=>{URL.revokeObjectURL(a.href); a.remove();},1500);
+  }
+
+  /* ====== 旅行 ====== */
+  const SHOP = "百貨購物";
+  const tripOf = r => (D.trips||[]).find(t=>t.id===r.tripId);
+  function activeTripFor(date){ return (D.trips||[]).find(t=>t.start<=date && date<=t.end) || null; }
+  function tripStats(t){
+    const rs = D.records.filter(r=>r.tripId===t.id);
+    const own = rs.filter(r=>!r.advance && r.category!==SHOP), adv = rs.filter(r=>r.advance), shop = rs.filter(r=>!r.advance && r.category===SHOP);
+    const sum = a => a.reduce((s,r)=>s+r.amount,0);
+    const group = (a,key) => { const m=new Map(); a.forEach(r=>{ const k=key(r); m.set(k,(m.get(k)||0)+r.amount); }); return [...m.entries()].sort((x,y)=>y[1]-x[1]); };
+    return { rs, own, adv, shop, total:sum(own), advTotal:sum(adv), shopTotal:sum(shop), perPerson: t.people>0 ? sum(own)/t.people : null,
+      byCat:group(own,r=>r.category), byCard:group(rs.filter(r=>!r.advance),r=>r.cardName), byDay:group(own,r=>r.date).sort((a,b)=>a[0].localeCompare(b[0])) };
+  }
+
+  /* ====== 匯出 Excel ====== */
+  function exportRecords(opt){
+    const inc = opt.inc || new Set(["detail","cat","card","bank","month"]);
+    let rs = filterRecs(opt), title, fname;
+    if(opt.kind==="trip"){ const t=(D.trips||[]).find(x=>x.id===opt.trip); title="旅遊記帳：" + t.name; fname="LifeLedger_trip_"+t.start; }
+    else { title = opt.from===opt.to ? monLabel(opt.from) : monLabel(opt.from)+" – "+monLabel(opt.to); fname="LifeLedger_"+opt.from+(opt.from!==opt.to?"_to_"+opt.to:""); }
+    const flt=[]; if(opt.card){ const c=D.cards.find(x=>x.id===opt.card); if(c) flt.push(c.name); } if(opt.bank) flt.push(opt.bank); if(opt.cat) flt.push(opt.cat);
+    if(flt.length) title += "（"+flt.join("・")+"）";
+    rs.sort((a,b)=>a.date.localeCompare(b.date)||a.ts-b.ts);
+    if(!rs.length){ toast("這個範圍沒有記錄可以匯出。", true); return null; }
+    const total = rs.reduce((s,r)=>s+r.amount,0);
+    const group = key => { const m=new Map(); rs.forEach(r=>{ const k=key(r); const o=m.get(k)||{v:0,n:0}; o.v+=r.amount; o.n++; m.set(k,o); }); return [...m.entries()].sort((a,b)=>b[1].v-a[1].v); };
+    const byCat=group(r=>r.category||"其他"), byCard=group(r=>r.cardName||"未指定"), byBank=group(r=>bankOf(r)), byMonth=group(r=>r.date.slice(0,7)).sort((a,b)=>a[0].localeCompare(b[0]));
+    const cardBank = name => { const c=D.cards.find(k=>k.name===name); return c?c.bank:"其他"; };
+    // --- 摘要 ---
+    const S=[], merges=[], heights={};
+    S.push([{v:"LIFELEDGER · 隨手記",s:"eyebrow"}]); S.push([{v:title,s:"title"}]); heights[1]=30;
+    S.push([{v:"匯出時間 "+new Date().toLocaleString("zh-TW")+"　帳號 "+(USER||""),s:"sub"}]); S.push(null);
+    const kpi=[["總消費",total],["筆數",rs.length],["平均每筆",total/rs.length]];
+    if(opt.kind==="trip" && !flt.length){ const t=(D.trips||[]).find(x=>x.id===opt.trip), st=tripStats(t);
+      kpi.splice(0,3,["自家旅費（不含購物、代墊）",st.total],["每人平均（"+(t.people||"—")+" 人）",st.perPerson||0],["購物（不計入旅費）",st.shopTotal],["幫別人代墊",st.advTotal]);
+      if(t.budget) kpi.push(["旅行預算剩餘（預算 "+fmt(t.budget)+"）",t.budget-st.total]); }
+    S.push(kpi.map(k=>({v:k[0],s:"kpil"}))); S.push(kpi.map(k=>({v:Math.round(k[1]),s:"kpi"}))); heights[5]=28; S.push(null);
+    const table=(label,rows,withBank,den)=>{
+      const tot = den!=null ? den : total, cnt = rows.reduce((a,r)=>a+r[1].n,0);
+      S.push([{v:label,s:"sec"},{v:"",s:"sec"},{v:"",s:"sec"},{v:"",s:"sec"}]);
+      S.push([{v:withBank?"銀行":"項目",s:"h"},{v:withBank==="card"?"卡片":"金額",s:"h"},{v:withBank==="card"?"金額":"佔比",s:"h"},{v:withBank==="card"?"佔比":"筆數",s:"h"}]);
+      rows.forEach(([k,o])=>{
+        if(withBank==="card") S.push([{v:cardBank(k),s:"bank_"+(XL_BANKS.includes(cardBank(k))?cardBank(k):"其他")},{v:k,s:"txt"},{v:Math.round(o.v),s:"num"},{v:tot?o.v/tot:0,s:"pct"}]);
+        else if(withBank==="bank") S.push([{v:k,s:"bank_"+(XL_BANKS.includes(k)?k:"其他")},{v:Math.round(o.v),s:"num"},{v:tot?o.v/tot:0,s:"pct"},{v:o.n,s:"num"}]);
+        else S.push([{v:k,s:"txt"},{v:Math.round(o.v),s:"num"},{v:tot?o.v/tot:0,s:"pct"},{v:o.n,s:"num"}]);
+      });
+      if(withBank==="card") S.push([{v:"合計",s:"tot"},{v:"",s:"tot"},{v:Math.round(tot),s:"numb"},{v:1,s:"pctb"}]);
+      else S.push([{v:"合計",s:"tot"},{v:Math.round(tot),s:"numb"},{v:1,s:"pctb"},{v:cnt,s:"numb"}]);
+      S.push(null);
+    };
+    if(opt.kind==="trip" && !flt.length){
+      const t=(D.trips||[]).find(x=>x.id===opt.trip), st=tripStats(t);
+      const g2=(a,key)=>{ const m=new Map(); a.forEach(r=>{ const k=key(r); const o=m.get(k)||{v:0,n:0}; o.v+=r.amount; o.n++; m.set(k,o); }); return [...m.entries()].sort((x,y)=>y[1].v-x[1].v); };
+      if(inc.has("cat")) table("依分類（自家旅費，不含購物、代墊）", g2(st.own,r=>r.category), null, st.total);
+      if(inc.has("month")) table("依日期（自家旅費）", g2(st.own,r=>r.date).sort((a,b)=>a[0].localeCompare(b[0])), null, st.total);
+      if(inc.has("card")) table("依信用卡（全部刷卡，含購物與代墊）",byCard,"card");
+      if(inc.has("bank")) table("依銀行（全部刷卡）",byBank,"bank");
+    } else {
+      if(inc.has("cat")) table("依分類",byCat);
+      if(inc.has("card")) table("依信用卡",byCard,"card");
+      if(inc.has("bank")) table("依銀行",byBank,"bank");
+      if(inc.has("month") && byMonth.length>1) table("依月份",byMonth);
+    }
+    // --- 明細 ---
+    const L=[[ "日期","金額 (TWD)","原幣金額","幣別","信用卡","銀行","分類","備註","旅行","代墊" ].map(v=>({v,s:"h"}))];
+    rs.forEach(r=>{ const t=tripOf(r);
+      L.push([{v:r.date,s:"date",date:true},{v:r.amount,s:"num"},{v:r.oamt!=null?r.oamt:"",s:"fx"},{v:r.ocur||"TWD",s:"txt"},{v:r.cardName,s:"txt"},{v:bankOf(r),s:"bank_"+(XL_BANKS.includes(bankOf(r))?bankOf(r):"其他")},{v:r.category,s:"txt"},{v:r.note||"",s:"txt"},{v:t?t.name:"",s:"txt"},{v:r.advance?"是":"",s:"txt"}]); });
+    L.push([{v:"合計",s:"tot"},{v:Math.round(total),s:"numb"},{v:"",s:"tot"},{v:"",s:"tot"},{v:"",s:"tot"},{v:"",s:"tot"},{v:"",s:"tot"},{v:"",s:"tot"},{v:"",s:"tot"},{v:"",s:"tot"}]);
+    const sheets=[{name:"摘要", rows:S, cols:[30,26,16,14,16], heights}];
+    if(inc.has("detail")) sheets.push({name:"明細", rows:L, cols:[12,13,12,8,26,9,14,26,14,7], freeze:1, autoFilter:"A1:J"+(rs.length+1)});
+    if(inc.has("cards")){
+      const K=[["銀行","卡片","每期上限","計算方式","限定分類","本期已刷","還可刷","使用率","到期","回饋說明"].map(v=>({v,s:"h"}))];
+      D.cards.forEach(c=>{ const u=capUse(c); K.push([{v:c.bank,s:"bank_"+(XL_BANKS.includes(c.bank)?c.bank:"其他")},{v:c.name,s:"txt"},{v:c.cap||"",s:"num"},{v:u.p.label,s:"txt"},{v:(c.cats||[]).join("、"),s:"txt"},{v:Math.round(u.used),s:"num"},{v:c.cap?Math.round(u.left):"",s:"num"},{v:c.cap?u.pct:"",s:"pct"},{v:c.exp?c.exp.slice(5)+"/"+c.exp.slice(2,4):"",s:"txt"},{v:c.note||"",s:"txt"}]); });
+      sheets.push({name:"卡片清單", rows:K, cols:[9,26,12,22,20,12,12,9,8,40], freeze:1});
+    }
+    if(inc.has("trips") && (D.trips||[]).length){
+      const Tt=[["旅行","出發","回程","幣別","匯率","人數","預算","自家旅費","預算剩餘","每人平均","購物","代墊"].map(v=>({v,s:"h"}))];
+      (D.trips||[]).slice().sort((a,b)=>b.start.localeCompare(a.start)).forEach(t=>{ const st=tripStats(t); Tt.push([{v:t.name,s:"txt"},{v:t.start,s:"date",date:true},{v:t.end,s:"date",date:true},{v:tripCurs(t).map(c=>c.cur).join("/")||"TWD",s:"txt"},{v:tripCurs(t).map(c=>c.rate).join(" / ")||1,s:"txt"},{v:t.people||"",s:"num"},{v:t.budget||"",s:"num"},{v:Math.round(st.total),s:"num"},{v:t.budget?Math.round(t.budget-st.total):"",s:"num"},{v:st.perPerson?Math.round(st.perPerson):"",s:"num"},{v:Math.round(st.shopTotal),s:"num"},{v:Math.round(st.advTotal),s:"num"}]); });
+      sheets.push({name:"旅行總覽", rows:Tt, cols:[20,12,12,7,9,7,12,12,12,12,12,12], freeze:1});
+    }
+    const blob = XL.build(sheets);
+    return {blob, name: fname.replace(/[\\/:*?"<>|]/g,"_")+".xlsx"};
+  }
+  const XL_BANKS=["台新","永豐","玉山","聯邦","中信","星展","國泰","富邦","遠東","滙豐","其他"];
+
+  /* ====== 匯出（畫面） ====== */
+  function fillSel(id, first, items){ const el=$(id), keep=el.value; el.textContent=""; const o=document.createElement("option"); o.value=""; o.textContent=first; el.appendChild(o);
+    items.forEach(([v,t])=>{ const x=document.createElement("option"); x.value=v; x.textContent=t; el.appendChild(x); }); el.value = items.some(i=>i[0]===keep) ? keep : ""; }
+  function openExport(){ fillExportOptions(); $("exportSheet").hidden=false; $("exRange").focus(); }
+  function closeExport(){ $("exportSheet").hidden=true; }
+  function fillExportOptions(){
+    fillSel("exCard","全部信用卡", D.cards.map(c=>[c.id,c.name]));
+    fillSel("exBank","全部銀行", [...new Set(D.cards.map(c=>c.bank))].map(b=>[b,b]));
+    fillSel("exCat","全部分類", CATS.map(c=>[c,c]));
+    const ts=$("exTrip"); ts.textContent="";
+    (D.trips||[]).slice().sort((a,b)=>b.start.localeCompare(a.start)).forEach(t=>{ const o=document.createElement("option"); o.value=t.id; o.textContent=t.name+"（"+t.start.slice(5).replace("-","/")+"–"+t.end.slice(5).replace("-","/")+"）"; ts.appendChild(o); });
+    if(!$("exFrom").value){ $("exFrom").value=M; $("exTo").value=M; }
+    syncExportUi();
+  }
+  function syncExportUi(){
+    const k=$("exRange").value;
+    $("exCustom").hidden = k!=="custom"; $("exTripWrap").hidden = k!=="trip";
+    $("exTripNone").hidden = !(k==="trip" && !(D.trips||[]).length);
+    const o=exportOpt(), rs=filterRecs(o);
+    $("exSum").textContent = rs.length ? "符合 "+rs.length+" 筆，共 NT$ "+fmt(rs.reduce((a,r)=>a+r.amount,0)) : "這個條件沒有記錄";
+  }
+  function filterRecs(o){
+    let rs=D.records.slice();
+    if(o.kind==="trip") rs=rs.filter(r=>r.tripId===o.trip); else rs=rs.filter(r=>r.date.slice(0,7)>=o.from && r.date.slice(0,7)<=o.to);
+    if(o.card) rs=rs.filter(r=>r.cardId===o.card || (!r.cardId && (D.cards.find(c=>c.id===o.card)||{}).name===r.cardName));
+    if(o.bank) rs=rs.filter(r=>bankOf(r)===o.bank);
+    if(o.cat) rs=rs.filter(r=>r.category===o.cat);
+    return rs;
+  }
+  function exportOpt(){
+    const k=$("exRange").value, y=+TODAY.slice(0,4);
+    const extra={card:$("exCard").value, bank:$("exBank").value, cat:$("exCat").value, inc:new Set([...document.querySelectorAll(".exInc:checked")].map(x=>x.value))};
+    let o;
+    if(k==="month") o={kind:"range", from:M, to:M};
+    else if(k==="last"){ const m=shiftM(TODAY.slice(0,7),-1); o={kind:"range", from:m, to:m}; }
+    else if(k==="year") o={kind:"range", from:y+"-01", to:y+"-12"};
+    else if(k==="lastyear") o={kind:"range", from:(y-1)+"-01", to:(y-1)+"-12"};
+    else if(k==="all"){ const ds=D.records.map(r=>r.date.slice(0,7)).sort(); o={kind:"range", from:ds[0]||M, to:ds[ds.length-1]||M}; }
+    else if(k==="custom"){ let a=$("exFrom").value||M, b=$("exTo").value||a; if(a>b) [a,b]=[b,a]; o={kind:"range", from:a, to:b}; }
+    else o={kind:"trip", trip:$("exTrip").value};
+    return Object.assign(o, extra);
+  }
+  async function doExport(opt){
+    if(opt.kind==="trip" && !opt.trip){ toast("還沒有旅行可以匯出。", true); return; }
+    try{ const out=exportRecords(opt); if(!out) return; await saveBlob(out.name, out.blob); toast("已匯出 "+out.name); }
+    catch(e){ toast("匯出沒有成功："+((e&&e.message)||"請再試一次"), true); }
+  }
+  ["exRange","exFrom","exTo","exTrip","exCard","exBank","exCat"].forEach(id=>$(id).addEventListener("change", syncExportUi));
+  $("exGo").addEventListener("click", async ()=>{ const o=exportOpt(); if(!o.inc.size){ toast("請至少勾選一張工作表",true); return; } await doExport(o); });
+  $("lgExport").addEventListener("click", openExport);
+  $("openExport2").addEventListener("click", openExport);
+  $("exClose").addEventListener("click", closeExport);
+  $("exportSheet").addEventListener("click", e=>{ if(e.target.id==="exportSheet") closeExport(); });
+  document.addEventListener("keydown", e=>{ if(e.key==="Escape" && !$("exportSheet").hidden) closeExport(); });
+
+  /* ====== 旅行：幣別、匯率 ====== */
+  const DESTS = [["日本","JPY"],["韓國","KRW"],["美國","USD"],["歐洲（歐元）","EUR"],["英國","GBP"],["瑞士","CHF"],["泰國","THB"],["越南","VND"],["新加坡","SGD"],
+    ["馬來西亞","MYR"],["印尼","IDR"],["菲律賓","PHP"],["香港","HKD"],["澳門","MOP"],["中國","CNY"],["澳洲","AUD"],["紐西蘭","NZD"],["加拿大","CAD"],["土耳其","TRY"],["台灣（國內旅遊）","TWD"]];
+  const CURS = [...new Set(DESTS.map(d=>d[1]))];
+  const tripCurs = t => t ? (t.curs && t.curs.length ? t.curs : (t.cur && t.cur!=="TWD" ? [{cur:t.cur, rate:t.rate}] : [])) : [];
+  /* 匯率來源：ExchangeRate-API 開放版（每天更新一次的參考匯率，非銀行刷卡匯率） */
+  let FX = null;
+  async function fetchRates(){
+    try{ const c=JSON.parse(localStorage.getItem("cf-fx")||"null"); if(c && c.day===TODAY) return (FX=c); }catch(e){}
+    const r = await fetch("https://open.er-api.com/v6/latest/TWD", {cache:"no-store"});
+    const j = await r.json();
+    if(j.result!=="success" || !j.rates) throw new Error("匯率服務沒有回應");
+    FX = {day:TODAY, rates:j.rates, updated:j.time_last_update_utc};
+    try{ localStorage.setItem("cf-fx", JSON.stringify(FX)); }catch(e){}
+    return FX;
+  }
+  async function rateOf(cur){ if(cur==="TWD") return 1; const fx=await fetchRates(); const v=fx.rates[cur]; if(!v) throw new Error("查不到 "+cur+" 的匯率"); const r=1/v; return Number(r.toPrecision(r<0.01?4:5)); }
+
+  /* ====== 旅行：記帳表單 ====== */
+  let fxCur = null;   // 目前用哪個外幣輸入；null = 台幣
+  function curTrip(){ return (D.trips||[]).find(x=>x.id===$("tripSel").value)||null; }
+  function renderTripRow(){
+    const date=$("date").value||TODAY, trips=(D.trips||[]);
+    const row=$("tripRow"); row.hidden = !trips.length;
+    if(!trips.length){ fxCur=null; $("amtCur").textContent="NT$"; return; }
+    const sel=$("tripSel"), cur=sel.value;
+    sel.textContent="";
+    const none=document.createElement("option"); none.value=""; none.textContent="不屬於旅行"; sel.appendChild(none);
+    trips.slice().sort((a,b)=>b.start.localeCompare(a.start)).forEach(t=>{ const o=document.createElement("option"); o.value=t.id; o.textContent=t.name; sel.appendChild(o); });
+    const auto=activeTripFor(date);
+    sel.value = sel.dataset.touched ? cur : (auto ? auto.id : "");
+    const t=curTrip(), cs=tripCurs(t);
+    if(fxCur && !cs.some(c=>c.cur===fxCur)) fxCur=null;
+    const tabs=$("curTabs"); tabs.textContent="";
+    $("curLine").hidden = !cs.length;
+    [{cur:null,label:"TWD"}].concat(cs.map(c=>({cur:c.cur,label:c.cur}))).forEach(o=>{
+      const b=document.createElement("button"); b.type="button"; b.textContent=o.label; b.setAttribute("aria-selected",String(fxCur===o.cur));
+      b.addEventListener("click",()=>{ fxCur=o.cur; renderTripRow(); }); tabs.appendChild(b); });
+    $("advChk").parentElement.hidden = !t;
+    $("amtCur").textContent = fxCur || "NT$";
+    updateFxHint();
+  }
+  function fxRate(){ const c=tripCurs(curTrip()).find(x=>x.cur===fxCur); return c ? c.rate : null; }
+  function updateFxHint(){
+    const raw=$("amount").value, v=evalAmount(raw), rate=fxRate();
+    if(fxCur && rate && v>0) $("amtCalc").textContent = (/\+/.test(raw)?"＝ "+fxCur+" "+fmt(v)+"　":"")+"≈ NT$ "+fmt(v*rate)+"（1 "+fxCur+" = "+rate+" 元）";
+    else $("amtCalc").textContent = (/\+/.test(raw) && v>0) ? "＝ NT$ "+fmt(v) : "";
+  }
+  $("tripSel").addEventListener("change",()=>{ $("tripSel").dataset.touched="1"; renderTripRow(); });
+  $("date").addEventListener("change",()=>{ if(!$("tripSel").dataset.touched) renderTripRow(); });
+  $("amount").addEventListener("input", updateFxHint);
+
+  /* ====== 旅行：分頁 ====== */
+  function renderTrip(){
+    const box=$("tripBody"); box.textContent="";
+    const trips=(D.trips||[]).slice().sort((a,b)=>b.start.localeCompare(a.start));
+    const sel=$("tripPick"); const keep=sel.value; sel.textContent="";
+    trips.forEach(t=>{ const o=document.createElement("option"); o.value=t.id; o.textContent=t.name; sel.appendChild(o); });
+    $("tripPickWrap").hidden=!trips.length;
+    if(!trips.length){ const e=document.createElement("div"); e.className="empty"; e.textContent="還沒有旅行。按上面「＋ 新增旅行」，選目的地（日本、韓國、美國、歐洲、東南亞…），匯率會自動帶入。旅行期間記帳會自動歸到這趟旅行。"; box.appendChild(e); return; }
+    const act0=activeTripFor(TODAY);
+    sel.value = trips.some(t=>t.id===keep) ? keep : (act0 ? act0.id : trips[0].id);
+    const t=trips.find(x=>x.id===sel.value), st=tripStats(t);
+    const meta=document.createElement("div"); meta.className="hint"; meta.textContent=t.start.replace(/-/g,"/")+" – "+t.end.replace(/-/g,"/")+"・"+st.rs.length+" 筆"+(t.people?"・"+t.people+" 人":"");
+    box.appendChild(meta);
+    if(t.budget){ const pct=st.total/t.budget, bx=document.createElement("div"); bx.className="tbud";
+      const lab=document.createElement("div"); lab.className="sync"; const l1=document.createElement("span"); l1.textContent="旅行預算 NT$ "+fmt(t.budget)+"・已用 "+(pct*100).toFixed(0)+"%"; const l2=document.createElement("b"); l2.className=lvl(pct); l2.textContent = pct>1 ? "超出 NT$ "+fmt(st.total-t.budget) : "還可花 NT$ "+fmt(t.budget-st.total); lab.append(l1,l2);
+      const bar=document.createElement("div"); bar.className="cap"; const tt=document.createElement("div"); tt.className="t"; const i=document.createElement("i"); i.className=lvl(pct); i.style.width=Math.min(100,pct*100)+"%"; tt.appendChild(i); bar.appendChild(tt);
+      bx.append(lab,bar); box.appendChild(bx); }
+    const kp=document.createElement("div"); kp.className="tkpi";
+    [["自家旅費",st.total,"不含購物、代墊"],["每人平均",st.perPerson,t.people?t.people+" 人":"未設人數"],["購物",st.shopTotal,"不計入旅費"],["幫別人代墊",st.advTotal,"之後要收回"]].forEach(([k,v,s])=>{
+      const d=document.createElement("div"); const a=document.createElement("div"); a.className="k"; a.textContent=k; const b=document.createElement("div"); b.className="v num"; b.textContent=v==null?"—":"NT$ "+fmt(v); const c=document.createElement("div"); c.className="k"; c.textContent=s; d.append(a,b,c); kp.appendChild(d); });
+    box.appendChild(kp);
+    // 幣別與匯率
+    const fxb=document.createElement("div"); fxb.className="fxbox";
+    const fh=document.createElement("div"); fh.className="flabel"; fh.textContent="這趟旅行的幣別與匯率（1 外幣 = 幾元台幣）"; fxb.appendChild(fh);
+    tripCurs(t).forEach(c=>{
+      const r=document.createElement("div"); r.className="fxrow";
+      const n=document.createElement("b"); n.textContent=c.cur;
+      const i=document.createElement("input"); i.className="inp num"; i.inputMode="decimal"; i.value=c.rate; i.setAttribute("aria-label",c.cur+" 匯率");
+      const sv=document.createElement("button"); sv.type="button"; sv.className="ibtn"; sv.textContent="儲存";
+      sv.addEventListener("click",()=>{ const v=Number(i.value); if(!(v>0)){ toast("匯率要大於 0",true); return; } setTripCur(t.id,c.cur,v,"已更新 "+c.cur+" 匯率"); });
+      const up=document.createElement("button"); up.type="button"; up.className="ibtn"; up.textContent="今日匯率";
+      up.addEventListener("click",async()=>{ try{ const v=await rateOf(c.cur); i.value=v; setTripCur(t.id,c.cur,v,"已套用今日匯率 1 "+c.cur+" = "+v+" 元"); }catch(e){ toast("取得匯率失敗："+e.message+"，請手動輸入",true); } });
+      const rm=document.createElement("button"); rm.type="button"; rm.className="ibtn"; rm.textContent="移除";
+      rm.addEventListener("click",()=>act(d=>{ const x=d.trips.find(k=>k.id===t.id); x.curs=tripCurs(x).filter(k=>k.cur!==c.cur); delete x.cur; delete x.rate; }, "已移除 "+c.cur));
+      r.append(n,i,sv,up,rm); fxb.appendChild(r);
+    });
+    const addr=document.createElement("div"); addr.className="fxrow";
+    const ns=document.createElement("select"); ns.className="inp"; ns.setAttribute("aria-label","加入幣別");
+    const o0=document.createElement("option"); o0.value=""; o0.textContent="＋ 加入其他幣別（例如歐洲多國、轉機）"; ns.appendChild(o0);
+    CURS.filter(c=>c!=="TWD" && !tripCurs(t).some(k=>k.cur===c)).forEach(c=>{ const o=document.createElement("option"); o.value=c; o.textContent=c+"　"+DESTS.filter(d=>d[1]===c).map(d=>d[0]).join("、"); ns.appendChild(o); });
+    ns.addEventListener("change",async()=>{ const c=ns.value; if(!c) return; let v=null; try{ v=await rateOf(c); }catch(e){}
+      if(!v){ const m=prompt; v=null; toast("取不到 "+c+" 今日匯率，已加入，請在上面輸入匯率後按儲存",true); }
+      setTripCur(t.id,c,v||1,v?"已加入 "+c+"（1 "+c+" = "+v+" 元）":null); });
+    addr.appendChild(ns); fxb.appendChild(addr);
+    const src=document.createElement("div"); src.className="hint"; src.textContent="「今日匯率」來自 ExchangeRate-API 的每日參考匯率"+(FX&&FX.updated?"（更新於 "+new Date(FX.updated).toLocaleDateString("zh-TW")+"）":"")+"，不是即時、也不是銀行的刷卡匯率；帳單出來後可以把那筆的台幣金額改成實際入帳金額。";
+    fxb.appendChild(src); box.appendChild(fxb);
+    const bars=(title,rows,colorOf)=>{ if(!rows.length) return; const h=document.createElement("div"); h.className="flabel"; h.textContent=title; box.appendChild(h);
+      const wrap=document.createElement("div"); wrap.className="brk"; const max=Math.max(...rows.map(r=>r[1]),1);
+      rows.forEach(([k,v])=>{ const r=document.createElement("div"); r.className="brow"; const n=document.createElement("div"); n.className="n"; const s=document.createElement("span"); s.textContent=k; n.appendChild(s);
+        const vv=document.createElement("div"); vv.className="v"; vv.textContent="NT$ "+fmt(v); const tt=document.createElement("div"); tt.className="t"; const i=document.createElement("i"); i.style.width=Math.max(2,v/max*100)+"%"; i.style.background=colorOf?colorOf(k):"var(--gold)"; tt.appendChild(i); r.append(n,vv,tt); wrap.appendChild(r); });
+      box.appendChild(wrap); };
+    bars("依分類（自家旅費）", st.byCat);
+    bars("依日期", st.byDay.map(([d,v])=>[Number(d.slice(5,7))+"/"+Number(d.slice(8)),v]));
+    bars("依信用卡（含購物，不含代墊）", st.byCard, k=>{ const c=D.cards.find(x=>x.name===k); return bankColor(c?c.bank:"其他"); });
+    const ex=document.createElement("button"); ex.type="button"; ex.className="btn"; ex.textContent="匯出這趟旅行 Excel"; ex.addEventListener("click",()=>doExport({kind:"trip",trip:t.id}));
+    box.appendChild(ex);
+  }
+  function setTripCur(id,cur,rate,msg){
+    act(d=>{ const x=d.trips.find(k=>k.id===id); const cs=tripCurs(x).filter(k=>k.cur!==cur); cs.push({cur,rate}); x.curs=cs; delete x.cur; delete x.rate; }, msg).then(ok=>{ if(ok){ renderTrip(); renderTripRow(); } });
+  }
+  $("tripPick").addEventListener("change",renderTrip);
+
+  /* ====== 旅行：新增（在旅行分頁） ====== */
+  function fillDest(){ const s=$("tDest"); if(s.options.length) return; DESTS.forEach(([n,c])=>{ const o=document.createElement("option"); o.value=c+"|"+n; o.textContent=n+"（"+c+"）"; s.appendChild(o); }); }
+  async function onDest(){
+    const [cur,name]=$("tDest").value.split("|");
+    if(!$("tName").dataset.touched){ const y=($("tStart").value||TODAY).slice(0,4); $("tName").value=name.replace(/（.*）/,"")+" "+y; }
+    $("tRateWrap").hidden = cur==="TWD";
+    if(cur==="TWD"){ $("tRate").value=""; $("tRateNote").textContent=""; return; }
+    $("tRateNote").textContent="正在取得今日匯率…";
+    try{ const v=await rateOf(cur); $("tRate").value=v; $("tRateNote").textContent="今日參考匯率（ExchangeRate-API），可以自己改"; }
+    catch(e){ $("tRateNote").textContent="取不到今日匯率，請手動輸入（1 "+cur+" = 幾元台幣）"; }
+  }
+  $("tripNew").addEventListener("click",()=>{ const f=$("tripForm"); f.hidden=!f.hidden; if(!f.hidden){ fillDest(); onDest(); $("tDest").focus(); } });
+  $("tDest").addEventListener("change",onDest);
+  $("tName").addEventListener("input",()=>{ $("tName").dataset.touched="1"; });
+  $("tripAdd").addEventListener("click",()=>{
+    const [cur]=$("tDest").value.split("|");
+    const name=$("tName").value.trim(), start=$("tStart").value, end=$("tEnd").value||start, rate=cur==="TWD"?1:Number($("tRate").value);
+    const people=Math.round(Number($("tPeople").value))||null, budget=Math.round(evalAmount($("tBudget").value))||null;
+    if(!name){ toast("請輸入旅行名稱",true); $("tName").focus(); return; }
+    if(!start){ toast("請選出發日期",true); return; }
+    if(cur!=="TWD" && !(rate>0)){ toast("請輸入匯率：1 "+cur+" 等於多少台幣",true); $("tRate").focus(); return; }
+    const t={id:uid(), name, start:start<=end?start:end, end:start<=end?end:start, curs: cur==="TWD"?[]:[{cur,rate}], people, budget};
+    act(d=>{ d.trips=(d.trips||[]).concat([t]); }, "已新增旅行「"+name+"」").then(ok=>{ if(ok){ ["tName","tRate","tPeople","tBudget"].forEach(i=>$(i).value=""); delete $("tName").dataset.touched; $("tripForm").hidden=true; $("tripPick").value=t.id; renderTripEdit(); renderTripRow(); renderTrip(); fillExportOptions(); } });
+  });
+
+  /* ====== 旅行：設定（清單、移除） ====== */
+  function renderTripEdit(){
+    const box=$("tripEdit"); box.textContent="";
+    if(!(D.trips||[]).length){ const e=document.createElement("div"); e.className="hint"; e.textContent="還沒有旅行，到「旅行」分頁新增。"; box.appendChild(e); return; }
+    (D.trips||[]).slice().sort((a,b)=>b.start.localeCompare(a.start)).forEach(t=>{
+      const r=document.createElement("div"); r.className="crow";
+      const l=document.createElement("div"); l.className="l"; const s=document.createElement("span"); s.textContent=t.name+"・"+t.start.slice(5).replace("-","/")+"–"+t.end.slice(5).replace("-","/")+(tripCurs(t).length?"・"+tripCurs(t).map(c=>c.cur).join("/"):"")+(t.people?"・"+t.people+" 人":"")+(t.budget?"・預算 "+fmt(t.budget):""); l.appendChild(s);
+      const del=document.createElement("button"); del.type="button"; del.textContent="移除";
+      del.addEventListener("click",()=>{ if(!del.classList.contains("arm")){ del.classList.add("arm"); del.textContent="確定？記錄會保留"; setTimeout(()=>{del.classList.remove("arm");del.textContent="移除";},3000); return; }
+        act(d=>{ d.trips=(d.trips||[]).filter(x=>x.id!==t.id); d.records.forEach(x=>{ if(x.tripId===t.id) delete x.tripId; }); }, "已移除旅行（消費記錄保留）").then(ok=>{ if(ok){ renderTripEdit(); renderTripRow(); renderTrip(); } }); });
+      r.append(l,del); box.appendChild(r);
+    });
+  }
+  /* ====================================================================
+     卡片保險箱：卡號、到期日、CVV 在手機／電腦上用「保險箱密碼」加密後才上傳。
+     雲端只存加密後的亂碼；保險箱密碼不會傳到伺服器，忘記就無法解開。
+     ==================================================================== */
+  const VLT = { open:false, key:null, data:null, timer:null };
+  const b64 = u8 => btoa(String.fromCharCode(...new Uint8Array(u8)));
+  const ub64 = s => Uint8Array.from(atob(s), c=>c.charCodeAt(0));
+  async function vKey(pin, salt){
+    const km = await crypto.subtle.importKey("raw", new TextEncoder().encode(pin), "PBKDF2", false, ["deriveKey"]);
+    return crypto.subtle.deriveKey({name:"PBKDF2", salt, iterations:250000, hash:"SHA-256"}, km, {name:"AES-GCM", length:256}, false, ["encrypt","decrypt"]);
+  }
+  async function vEncrypt(obj){
+    const iv = crypto.getRandomValues(new Uint8Array(12));
+    const ct = await crypto.subtle.encrypt({name:"AES-GCM", iv}, VLT.key, new TextEncoder().encode(JSON.stringify(obj)));
+    return {v:1, salt:D.vault.salt, iv:b64(iv), ct:b64(ct)};
+  }
+  function vLockSoon(){ clearTimeout(VLT.timer); VLT.timer=setTimeout(vLock, 3*60*1000); }
+  function vLock(){ VLT.open=false; VLT.key=null; VLT.data=null; clearTimeout(VLT.timer); renderVault(); if(!$("vaultSheet").hidden) closeVaultSheet(); }
+  document.addEventListener("visibilitychange",()=>{ if(document.hidden && VLT.open) vLock(); });
+  async function vUnlock(pin){
+    const salt=ub64(D.vault.salt), key=await vKey(pin, salt);
+    try{ const pt=await crypto.subtle.decrypt({name:"AES-GCM", iv:ub64(D.vault.iv)}, key, ub64(D.vault.ct));
+      VLT.key=key; VLT.data=JSON.parse(new TextDecoder().decode(pt)); VLT.open=true; vLockSoon(); return true; }
+    catch(e){ return false; }
+  }
+  async function vCreate(pin){
+    const salt=crypto.getRandomValues(new Uint8Array(16));
+    VLT.key=await vKey(pin, salt); VLT.data={entries:{}}; VLT.open=true;
+    const iv=crypto.getRandomValues(new Uint8Array(12));
+    const ct=await crypto.subtle.encrypt({name:"AES-GCM", iv}, VLT.key, new TextEncoder().encode(JSON.stringify(VLT.data)));
+    const vault={v:1, salt:b64(salt), iv:b64(iv), ct:b64(ct)};
+    return act(d=>{ d.vault=vault; }, "保險箱已建立");
+  }
+  async function vSave(){ const vault=await vEncrypt(VLT.data); vLockSoon(); return act(d=>{ d.vault=vault; d.cards.forEach(c=>{ c.vaulted=!!(VLT.data.entries[c.id]&&VLT.data.entries[c.id].pan); }); }, "卡號已更新"); }
+  const vEntry = id => VLT.open && VLT.data.entries[id];
+  const maskPan = p => { const d=String(p||"").replace(/\D/g,""); return d ? "•••• •••• •••• "+d.slice(-4) : ""; };
+  function copyText(t){ copyRaw(t, "已複製 16 碼卡號（末四碼 "+t.slice(-4)+"）"); }
+  function copyRaw(t, msg){
+    const done=()=>toast(msg);
+    if(navigator.clipboard && navigator.clipboard.writeText){ navigator.clipboard.writeText(t).then(done).catch(()=>fallback()); } else fallback();
+    function fallback(){ const i=document.createElement("input"); i.value=t; i.style.position="fixed"; i.style.opacity="0"; document.body.appendChild(i); i.select(); try{ document.execCommand("copy"); done(); }catch(e){ toast("無法自動複製，請長按卡號複製",true); } i.remove(); }
+  }
+
+  /* --- 快速取用：卡片的「卡號」按鈕 --- */
+  let vaultCard = null;
+  function openVaultFor(cardId){
+    vaultCard = rootOf(D.cards.find(k=>k.id===cardId)||{id:cardId}).id;
+    if(!D.vault){ $("settings").open=true; $("vaultBox").scrollIntoView({block:"center"}); toast("請先在「設定 › 卡片保險箱」設定保險箱密碼並填入卡號"); return; }
+    $("vaultSheet").hidden=false; renderVaultSheet();
+  }
+  function closeVaultSheet(){ $("vaultSheet").hidden=true; $("vPinQuick").value=""; }
+  function renderVaultSheet(){
+    const c=D.cards.find(k=>k.id===vaultCard); $("vsTitle").textContent = c ? c.name : "卡片";
+    $("vsLocked").hidden = VLT.open; $("vsOpen").hidden = !VLT.open;
+    if(!VLT.open){ setTimeout(()=>$("vPinQuick").focus(),50); return; }
+    const e=vEntry(vaultCard);
+    if(!e || !e.pan){ $("vsPan").textContent="這張卡還沒填卡號"; $("vsExp").textContent="—"; $("vsCvv").textContent="—"; $("vsCopy").disabled=true; $("vsShowCvv").disabled=true; return; }
+    $("vsPan").textContent=maskPan(e.pan); $("vsExp").textContent=e.exp||"—"; $("vsCvv").textContent=e.cvv?"•••":"—"; $("vsCopy").disabled=false; $("vsShowCvv").disabled=!e.cvv;
+  }
+  $("vsUnlock").addEventListener("click",async()=>{ const ok=await vUnlock($("vPinQuick").value); if(!ok){ toast("保險箱密碼不對",true); return; } $("vPinQuick").value=""; renderVault(); renderVaultSheet(); });
+  $("vPinQuick").addEventListener("keydown",e=>{ if(e.key==="Enter") $("vsUnlock").click(); });
+  $("vsCopy").addEventListener("click",()=>{ const e=vEntry(vaultCard); if(e&&e.pan){ copyText(e.pan.replace(/\D/g,"")); vLockSoon(); } });
+  $("vsShowCvv").addEventListener("click",()=>{ const e=vEntry(vaultCard); if(!e||!e.cvv) return; $("vsCvv").textContent=e.cvv; setTimeout(()=>{ if(!$("vaultSheet").hidden) $("vsCvv").textContent="•••"; },10000); vLockSoon(); });
+  $("vsCopyExp").addEventListener("click",()=>{ const e=vEntry(vaultCard); if(e&&e.exp){ copyRaw(e.exp,"已複製到期日 "+e.exp); vLockSoon(); } });
+  // 已解鎖時直接複製，不用再開視窗；上鎖時開視窗輸入保險箱密碼
+  function quickCopy(cardId){
+    const root=rootOf(D.cards.find(k=>k.id===cardId)||{id:cardId}); const e=VLT.open && VLT.data.entries[root.id];
+    if(e && e.pan){ copyText(e.pan.replace(/\D/g,"")); vLockSoon(); return; }
+    openVaultFor(cardId);
+  }
+  $("vsClose").addEventListener("click",closeVaultSheet);
+  $("vsLock").addEventListener("click",()=>{ vLock(); closeVaultSheet(); toast("保險箱已上鎖"); });
+  $("vaultSheet").addEventListener("click",e=>{ if(e.target.id==="vaultSheet") closeVaultSheet(); });
+
+  function vLuhn(d){ let s=0, alt=false; for(let i=d.length-1;i>=0;i--){ let n=+d[i]; if(alt){ n*=2; if(n>9) n-=9; } s+=n; alt=!alt; } return s%10===0; }
+  function vParse(text){
+    const out=[];
+    String(text||"").split(/\r?\n/).forEach(line=>{
+      // 先找 4-4-4-4（含 Amex 4-6-5），再找連續 13–19 碼，避免把後面的到期日吃進來
+      const pm=line.match(/(?<!\d)\d{4}([ -]?)\d{4}\1\d{4}\1\d{4}(?!\d)/) || line.match(/(?<!\d)\d{4}([ -]?)\d{6}\1\d{5}(?!\d)/) || line.match(/(?<!\d)\d{13,19}(?!\d)/); if(!pm) return;
+      const pan=pm[0].replace(/\D/g,""); if(pan.length<13||pan.length>19) return;
+      let rest=line.slice(pm.index+pm[0].length), exp="";
+      const em=rest.match(/(0[1-9]|1[0-2])\s*[\/\-]\s*(20)?(\d{2})(?!\d)/);
+      if(em){ exp=em[1]+"/"+em[3]; rest=rest.slice(em.index+em[0].length); }
+      const cm=rest.match(/(?:^|\D)(\d{3,4})(?!\d)/);
+      out.push({pan, exp, cvv:cm?cm[1]:"", luhn:vLuhn(pan)});
+    });
+    return out;
+  }
+  function vFill(cardId, r){
+    const w=$("vaultBody").querySelector('.vrow[data-id="'+cardId+'"]'); if(!w) return;
+    w.querySelector(".v-pan").value=r.pan; if(r.exp) w.querySelector(".v-exp").value=r.exp; if(r.cvv) w.querySelector(".v-cvv").value=r.cvv;
+    w.classList.add("filled");
+  }
+  /* --- 設定：建立保險箱、填卡號 --- */
+  /* --- 「卡號」分頁：每張卡一個大的複製鍵 --- */
+  function renderPk(){
+    const list=$("pkList"); if(!list) return; list.textContent="";
+    const has=!!D.vault, open=VLT.open;
+    $("pkLock").hidden=!has || open;
+    $("pkState").textContent=!has?"尚未設定":open?"已解鎖・3 分鐘後自動上鎖":"已上鎖";
+    if(!has){ const e=document.createElement("div"); e.className="empty"; e.textContent="還沒設定卡號。先到最下面「設定 › 卡片保險箱」設一組保險箱密碼並填入卡號，之後就在這裡一鍵複製。";
+      const b=document.createElement("button"); b.type="button"; b.className="btn primary"; b.textContent="去設定卡號"; b.style.marginTop="10px";
+      b.addEventListener("click",()=>{ $("settings").open=true; setTimeout(()=>$("vaultBox").scrollIntoView({block:"center"}),80); });
+      e.appendChild(document.createElement("br")); e.appendChild(b); list.appendChild(e); return; }
+    D.cards.filter(c=>rootOf(c)===c && c.bank!=="其他").forEach(c=>{
+      const e=open ? VLT.data.entries[c.id] : null;
+      const l4=e&&e.pan ? e.pan.slice(-4) : ((c.name.match(/[·・.]\s*(\d{4})/)||[])[1]||"");
+      const r=document.createElement("div"); r.className="pkrow"+(c.vaulted?"":" none");
+      const top=document.createElement("div"); top.className="pkt"; top.appendChild(badge(c.bank)); const nm=document.createElement("span"); nm.textContent=c.name.replace(/\s*[·・]\s*\d{4}\s*$/,""); top.appendChild(nm);
+      const num=document.createElement("div"); num.className="pknum num"; num.textContent="•••• "+(l4||"••••");
+      const meta=document.createElement("div"); meta.className="pkmeta num";
+      const exp=open&&e&&e.exp ? e.exp : (c.exp ? c.exp.slice(5)+"/"+c.exp.slice(2,4) : "—");
+      const cv=document.createElement("span"); cv.textContent="CVV •••";
+      meta.append("到期 "+exp+"　", cv);
+      const btn=document.createElement("button"); btn.type="button"; btn.className="pkcopy";
+      if(!c.vaulted){ btn.textContent="未填卡號"; btn.disabled=true; }
+      else { btn.innerHTML='<svg viewBox="0 0 24 24" width="18" height="18" aria-hidden="true"><rect x="8" y="8" width="12" height="12" rx="2" fill="none" stroke="currentColor" stroke-width="2"/><path d="M16 8V6a2 2 0 0 0-2-2H6a2 2 0 0 0-2 2v8a2 2 0 0 0 2 2h2" fill="none" stroke="currentColor" stroke-width="2"/></svg><span>複製卡號</span>';
+        btn.addEventListener("click",()=>{ if(!VLT.open){ toast("先在上面輸入保險箱密碼解鎖",true); $("pkPin").focus(); return; }
+          const x=VLT.data.entries[c.id]; if(x&&x.pan){ copyText(x.pan.replace(/\D/g,"")); vLockSoon(); btn.classList.add("done"); btn.querySelector("span").textContent="已複製"; setTimeout(()=>{ btn.classList.remove("done"); const s2=btn.querySelector("span"); if(s2) s2.textContent="複製卡號"; },2000); } }); }
+      const side=document.createElement("div"); side.className="pkside"; side.appendChild(btn);
+      if(open && e && e.cvv){ const cb=document.createElement("button"); cb.type="button"; cb.className="ibtn"; cb.textContent="看 CVV";
+        cb.addEventListener("click",()=>{ cv.textContent="CVV "+e.cvv; vLockSoon(); setTimeout(()=>{ cv.textContent="CVV •••"; },10000); }); side.appendChild(cb); }
+      const body=document.createElement("div"); body.className="pkb"; body.append(top,num,meta);
+      r.append(body,side); list.appendChild(r);
+    });
+  }
+  $("pkUnlock").addEventListener("click",async()=>{ const ok=await vUnlock($("pkPin").value); $("pkPin").value=""; if(!ok){ toast("保險箱密碼不對",true); return; } renderVault(); });
+  $("pkPin").addEventListener("keydown",e=>{ if(e.key==="Enter") $("pkUnlock").click(); });
+  function renderVault(){
+    renderPk();
+    const box=$("vaultBody"); if(!box) return; box.textContent="";
+    const add=(el)=>box.appendChild(el);
+    const mk=(tag,cls,txt)=>{ const e=document.createElement(tag); if(cls) e.className=cls; if(txt!=null) e.textContent=txt; return e; };
+    if(!D.vault){
+      add(mk("p","hint","設定一組「保險箱密碼」（至少 6 碼，和登入密碼不同）。卡號會在這台裝置上用它加密後才存到雲端；忘記保險箱密碼就無法解開，只能重設。"));
+      const a=mk("input","inp num"); a.type="password"; a.inputMode="numeric"; a.placeholder="保險箱密碼"; a.autocomplete="new-password";
+      const b=mk("input","inp num"); b.type="password"; b.inputMode="numeric"; b.placeholder="再輸入一次"; b.autocomplete="new-password";
+      const go=mk("button","btn","建立保險箱"); go.type="button";
+      go.addEventListener("click",async()=>{ if(a.value.length<6){ toast("保險箱密碼至少 6 碼",true); return; } if(a.value!==b.value){ toast("兩次輸入不一樣",true); return; } if(await vCreate(a.value)) renderVault(); });
+      const row=mk("div","exrow"); row.append(a,b,go); add(row); return;
+    }
+    if(!VLT.open){
+      const a=mk("input","inp num"); a.type="password"; a.inputMode="numeric"; a.placeholder="保險箱密碼"; a.autocomplete="off";
+      const go=mk("button","btn","解鎖"); go.type="button";
+      go.addEventListener("click",async()=>{ if(await vUnlock(a.value)) renderVault(); else toast("保險箱密碼不對",true); });
+      a.addEventListener("keydown",e=>{ if(e.key==="Enter") go.click(); });
+      const rs=mk("button","ibtn","忘記密碼，重設保險箱"); rs.type="button";
+      rs.addEventListener("click",()=>{ if(!rs.classList.contains("arm")){ rs.classList.add("arm"); rs.textContent="確定？已存的卡號會全部清除"; setTimeout(()=>{rs.classList.remove("arm");rs.textContent="忘記密碼，重設保險箱";},4000); return; }
+        act(d=>{ delete d.vault; }, "保險箱已清除").then(()=>renderVault()); });
+      const row=mk("div","exrow"); row.append(a,go); add(row); add(rs); return;
+    }
+    add(mk("p","hint","已解鎖（3 分鐘沒動作、或切到別的 App 會自動上鎖）。卡號只顯示末四碼，CVV 按「顯示」才會出現。"));
+    D.cards.filter(c=>rootOf(c)===c).forEach(c=>{
+      const e=VLT.data.entries[c.id]||{};
+      const w=mk("div","vrow"); w.dataset.id=c.id;
+      const h=mk("div","l"); h.appendChild(badge(c.bank)); h.appendChild(mk("span",null,c.name)); if(e.pan) h.appendChild(mk("span","exp",maskPan(e.pan).slice(-9)));
+      const pan=mk("input","inp num v-pan"); pan.type="password"; pan.inputMode="numeric"; pan.autocomplete="off"; pan.placeholder=e.pan?"已存（"+e.pan.slice(-4)+"），要改才填":"卡號 16 碼"; pan.maxLength=23;
+      const exp=mk("input","inp num v-exp"); exp.placeholder="MM/YY"; exp.inputMode="numeric"; exp.maxLength=5; exp.value=e.exp||"";
+      const cvv=mk("input","inp num v-cvv"); cvv.type="password"; cvv.inputMode="numeric"; cvv.autocomplete="off"; cvv.maxLength=4; cvv.placeholder=e.cvv?"已存":"CVV";
+      const del=mk("button","ibtn","清除"); del.type="button"; del.hidden=!e.pan;
+      del.addEventListener("click",async()=>{ delete VLT.data.entries[c.id]; if(await vSave()) renderVault(); });
+      const r2=mk("div","exrow"); r2.append(pan,exp,cvv,del);
+      w.append(h,r2); add(w);
+    });
+    // 一次貼上多張：在這台裝置上辨識，用卡名末四碼自動對到卡片；不會上傳明碼
+    const im=mk("details","vimp"); const ims=mk("summary",null,"一次貼上多張卡號（自動對應卡片）"); im.appendChild(ims);
+    im.appendChild(mk("p","hint","每行一張，例如：4xxx xxxx xxxx 1234 05/28 123。可以從 Excel、備忘錄整段複製貼上。會用卡號末四碼對應卡名裡的「·1234」，對不到的再自己選。按「帶入」後只是填進下面的欄位，還要按「加密儲存卡號」才會存。"));
+    const ta=mk("textarea","inp vta"); ta.rows=4; ta.autocomplete="off"; ta.spellcheck=false; ta.setAttribute("autocorrect","off"); ta.placeholder="貼上卡號、到期日、CVV（每行一張）";
+    const pb=mk("button","btn","帶入"); pb.type="button"; const res=mk("div","vres");
+    pb.addEventListener("click",()=>{ const rows=vParse(ta.value); ta.value=""; res.textContent="";
+      if(!rows.length){ toast("沒有辨識到卡號（需要 13–19 碼）",true); return; }
+      const roots=D.cards.filter(c=>rootOf(c)===c); let hit=0;
+      rows.forEach(r=>{ const l4=r.pan.slice(-4); const m=roots.filter(c=>new RegExp("(^|\\D)"+l4+"\\s*$").test(c.name) || new RegExp("[·・.]\\s*"+l4).test(c.name));
+        if(m.length===1){ vFill(m[0].id, r); hit++; return; }
+        const line=mk("div","exrow"); line.appendChild(mk("span","num","•••• "+l4+(r.exp?"　"+r.exp:"")+(r.luhn?"":"　⚠ 卡號檢查碼不對")));
+        const sel=mk("select","inp"); const o0=mk("option",null,"選擇卡片…"); o0.value=""; sel.appendChild(o0);
+        roots.forEach(c=>{ const o=mk("option",null,c.bank+" "+c.name); o.value=c.id; sel.appendChild(o); });
+        const ok=mk("button","btn ghost","帶入"); ok.type="button"; ok.addEventListener("click",()=>{ if(!sel.value) return; vFill(sel.value, r); line.remove(); });
+        line.append(sel,ok); res.appendChild(line); });
+      toast("辨識 "+rows.length+" 張，自動對應 "+hit+" 張"+(rows.length>hit?"，其餘請在下方選卡片":"")+"；確認後按「加密儲存卡號」");
+    });
+    im.append(ta,pb,res); add(im);
+    const sv=mk("button","btn","加密儲存卡號"); sv.type="button";
+    sv.addEventListener("click",async()=>{
+      let bad=null;
+      $("vaultBody").querySelectorAll(".vrow").forEach(w=>{
+        const id=w.dataset.id, e=Object.assign({}, VLT.data.entries[id]||{});
+        const p=w.querySelector(".v-pan").value.replace(/\D/g,""), x=w.querySelector(".v-exp").value.trim(), v=w.querySelector(".v-cvv").value.replace(/\D/g,"");
+        if(p){ if(p.length<13||p.length>19){ bad="卡號長度不對"; return; } e.pan=p; }
+        if(x){ if(!/^(0[1-9]|1[0-2])\/\d{2}$/.test(x)){ bad="到期日請用 MM/YY，例如 05/28"; return; } e.exp=x; }
+        if(v){ if(v.length<3){ bad="CVV 是 3 或 4 碼"; return; } e.cvv=v; }
+        if(e.pan) VLT.data.entries[id]=e;
+      });
+      if(bad){ toast(bad,true); return; }
+      // 到期日同步到卡片設定（只存月/年，供到期提醒）
+      const exps={}; Object.entries(VLT.data.entries).forEach(([id,e])=>{ if(e.exp){ const m=e.exp.split("/"); exps[id]="20"+m[1]+"-"+m[0]; } });
+      const vault=await vEncrypt(VLT.data); vLockSoon();
+      if(await act(d=>{ d.vault=vault; d.cards.forEach(c=>{ if(exps[c.id]) c.exp=exps[c.id]; c.vaulted=!!(VLT.data.entries[c.id]&&VLT.data.entries[c.id].pan); }); }, "卡號已加密儲存")) renderVault();
+    });
+    const lk=mk("button","ibtn","上鎖"); lk.type="button"; lk.addEventListener("click",()=>{ vLock(); toast("保險箱已上鎖"); });
+    const row=mk("div","exrow"); row.append(sv,lk); add(row);
+  }
+
+  (function(){ // 深淺色：自動（跟系統）→ 淺色 → 深色，記在這台手機
+    const modes=["auto","light","dark"], lab={auto:"自動（跟系統）",light:"淺色",dark:"深色"};
+    function ap(m){ if(m==="auto") document.documentElement.removeAttribute("data-theme"); else document.documentElement.setAttribute("data-theme",m);
+      const b=$("themeApp"); b.dataset.mode=m; b.title="深淺色："+lab[m]+"（點一下切換）"; b.setAttribute("aria-label","深淺色："+lab[m]);
+      const mt=document.querySelector('meta[name="theme-color"]'); if(mt){ const dark=m==="dark"||(m==="auto"&&matchMedia("(prefers-color-scheme: dark)").matches); mt.setAttribute("content",dark?"#0B121C":"#0E2035"); } }
+    let s="auto"; try{ s=localStorage.getItem("ll-theme")||"auto"; }catch(e){}
+    ap(modes.indexOf(s)<0?"auto":s);
+    $("themeApp").addEventListener("click",()=>{ const m=modes[(modes.indexOf($("themeApp").dataset.mode)+1)%3]; ap(m); try{ localStorage.setItem("ll-theme",m); }catch(e){} toast("深淺色："+lab[m]); });
+  })();
+  $("shareApp").addEventListener("click",async()=>{
+    // 只分享 App 網址：朋友打開後自己註冊帳號，資料各自分開，不會看到你的記帳
+    const url=location.origin+"/?join=1", data={title:"LifeLedger 隨手記", text:"我在用的免費記帳 App：信用卡、現金、收入都能記。打開後按「建立帳號」用你自己的帳號，資料各自分開（邀請碼再跟我拿）。", url};
+    try{ if(navigator.share){ await navigator.share(data); return; } }catch(e){ if(e&&e.name==="AbortError") return; }
+    try{ await navigator.clipboard.writeText(data.text+" "+url); toast("已複製分享連結（只有網址，不含你的資料）"); }
+    catch(e){ prompt("複製這個連結分享給朋友：", url); }
+  });
+  const VIEWS={vLg:"lgSec",vCap:"capSec",vBrk:"brkSec",vTrip:"tripSec",vInc:"incSec"};
+  const INC_SRC=["薪資","房租","二手出清","股票","現金","利息","退稅","其他"];
+  const srcName=s=>s==="賣東西"?"二手出清":s;
+  let incSrc=INC_SRC[0];
+  function renderIncChips(){ const box=$("incChips"); box.textContent="";
+    (INC_SRC.includes(incSrc)?INC_SRC:INC_SRC.concat([incSrc])).forEach(k=>{ const b=document.createElement("button"); b.type="button"; b.className="chip"; b.setAttribute("aria-pressed",String(k===incSrc)); b.textContent=k;
+      b.addEventListener("click",()=>{ incSrc=k; renderIncChips(); }); box.appendChild(b); }); }
+  renderIncChips();
+  $("incDate").value=TODAY;
+  $("incCancel").addEventListener("click",endIncEdit);
+  function setEntryMode(m){ $("entry").hidden=(m!=="exp"); $("incEntry").hidden=(m!=="inc");
+    document.querySelectorAll(".mbtn").forEach(b=>{ b.setAttribute("aria-pressed",String(b.dataset.mode===m)); b.setAttribute("aria-selected",String(b.dataset.mode===m)); }); }
+  document.querySelectorAll(".mbtn").forEach(b=>b.addEventListener("click",()=>{ setEntryMode(b.dataset.mode); }));
+  $("incEntry").addEventListener("submit",async ev=>{
+    ev.preventDefault();
+    const amt=evalAmount($("incAmt").value); if(!(amt>0)){ toast("請輸入收入金額",true); $("incAmt").focus(); return; }
+    const rec={id:incEditId||uid(), date:$("incDate").value||TODAY, amount:Math.round(amt*100)/100, source:incSrc, note:$("incNote").value.trim(), ts:Date.now()};
+    const editing=!!incEditId;
+    const ok=await act(d=>{ d.incomes=d.incomes||[]; if(editing){ const i=d.incomes.findIndex(k=>k.id===rec.id); if(i>=0) d.incomes[i]=rec; else d.incomes.push(rec); } else d.incomes.push(rec); },
+      (editing?"已修改收入 NT$ ":"已記收入 NT$ ")+fmt(rec.amount)+"・"+rec.source);
+    if(ok){ endIncEdit(); if(rec.date.slice(0,7)!==M){ M=rec.date.slice(0,7); } renderAll(); }
+  });
+  const GRP={list:["vLg","vInc"],ana:["vCap","vBrk","vTrip"]};
+  function showView(v){ const g=GRP.list.includes(v)?GRP.list:GRP.ana; g.forEach(k=>{ $(k).setAttribute("aria-selected",String(k===v)); $(VIEWS[k]).hidden = k!==v; }); try{ localStorage.setItem("cf-view-"+(g===GRP.list?"list":"ana"),v); }catch(e){} }
+  Object.keys(VIEWS).forEach(k=>$(k).addEventListener("click",()=>showView(k)));
+  // 底部分頁：把原本一長頁拆成 5 頁
+  const PG={};
+  (function buildPages(){
+    const main=$("main"), anchor=$("bnav"), vt=document.querySelector(".vtabs");
+    ["rec","list","ana","cards","set"].forEach(k=>{ const d=document.createElement("div"); d.className="page"; d.id="pg-"+k; d.hidden=true; main.insertBefore(d,anchor); PG[k]=d; });
+    PG.rec.append($("recRemind"),$("depRemind"),$("slip"),$("entry"),$("incEntry"));
+    const lk=document.createElement("div"); lk.className="rlinks"; lk.innerHTML='<a class="rl" href="view.html?p=report"><b>📅 月報</b><span>每月刷卡、回饋、收支</span></a><a class="rl" href="view.html?p=book"><b>📒 生活帳本</b><span>全部期間、勾代墊、查帳</span></a>';
+    PG.ana.appendChild(lk);
+    const vt2=vt.cloneNode(false); vt2.setAttribute("aria-label","明細"); vt2.append($("vLg"),$("vInc")); PG.list.append(vt2,$("lgSec"),$("incSec"));
+    vt.setAttribute("aria-label","分析"); PG.ana.append(vt,$("capSec"),$("brkSec"),$("tripSec"));
+    PG.cards.append($("cardsSec")); $("cardsSec").hidden=false;
+    PG.set.append($("settings"),$("syncBar"));
+  })();
+  let curPg="rec";
+  function goPage(k){ if(!PG[k]) k="rec"; curPg=k; Object.keys(PG).forEach(x=>PG[x].hidden=x!==k);
+    document.querySelectorAll("#bnav button").forEach(b=>b.toggleAttribute("aria-current",b.dataset.pg===k)); document.querySelectorAll("#bnav button[aria-current]").forEach(b=>b.setAttribute("aria-current","page"));
+    if(k==="set"){ $("settings").open=true; renderTripEdit(); fillExportOptions(); $("budgetAll").value=D.budget||""; renderDep(); renderSec(); }
+    if(k==="rec"){ try{ depRemind(); }catch(e){} }
+    if(k==="cards"){ renderCardEdit(); $("cardsSave").classList.remove("dirty"); }
+    if(k==="list"||k==="ana"){ let v=null; try{ v=localStorage.getItem("cf-view-"+k); }catch(e){} showView(GRP[k].includes(v)?v:GRP[k][0]); }
+    try{ localStorage.setItem("cf-page",k); }catch(e){} window.scrollTo({top:0}); }
+  document.querySelectorAll("#bnav button").forEach(b=>b.addEventListener("click",()=>goPage(b.dataset.pg)));
+  function cardDirty(){ $("cardsSave").classList.add("dirty"); }
+  $("byUse").addEventListener("click",()=>{ const list=readCardEdit(); const cut=shiftM(TODAY.slice(0,7),-6)+"-01"; const n=id=>D.records.filter(r=>r.cardId===id&&r.date>=cut).length;
+    const idx=new Map(list.map((c,i)=>[c.id,i])); list.sort((a,b)=>n(b.id)-n(a.id)||idx.get(a.id)-idx.get(b.id)); renderCardEdit(list); cardDirty(); toast("已依近半年使用次數排好，按「儲存卡片設定」才會存"); });
+  /* ====== 存款回填 ====== */
+  const DEPB0=["中信","玉山","LINE Bank","國泰"];
+  const depBanks=()=>(D.depBanks&&D.depBanks.length?D.depBanks:DEPB0);
+  const prevM=()=>shiftM(TODAY.slice(0,7),-1);
+  function depOf(b,m){ return (D.deposits||[]).find(x=>x.bank===b&&x.month===m); }
+  function renderDep(){
+    if(!$("depMonth").value) $("depMonth").value=prevM();
+    const m=$("depMonth").value; $("depBanks").value=depBanks().join(",");
+    $("depList").innerHTML="";
+    depBanks().forEach(b=>{ const x=depOf(b,m), last=(D.deposits||[]).filter(y=>y.bank===b&&y.month<m).sort((p,q)=>q.month.localeCompare(p.month))[0];
+      const r=document.createElement("label"); r.className="deprow"; const t=document.createElement("span"); t.textContent=b;
+      const i=document.createElement("input"); i.className="inp num"; i.inputMode="numeric"; i.dataset.bank=b; i.placeholder="月底餘額"; i.value=x?x.balance:"";
+      r.append(t,i); if(last){ const sm=document.createElement("small"); sm.textContent="上次 "+last.month.replace("-","/")+"：NT$ "+fmt(last.balance); r.appendChild(sm); }
+      $("depList").appendChild(r); });
+    const ds=(D.deposits||[]).slice().sort((a,b)=>(b.t||"").localeCompare(a.t||""))[0]; $("depLast").textContent=ds?"最近一次存：".concat(ds.t?ds.t.slice(0,10):""):"";
+  }
+  function depRemind(){
+    // 不在首頁提醒（每月 2 號手機推播會提醒）；設定 › 存款回填 會標出還沒填的銀行
+    const m=prevM(), miss=depBanks().filter(b=>!depOf(b,m)); const show=false;
+    $("depRemind").hidden=!show; if(show) $("depRemindT").textContent="記得回填 "+Number(m.slice(5))+" 月底存款："+miss.join("、");
+  }
+  $("depGo").addEventListener("click",()=>{ goPage("set"); $("depMonth").value=prevM(); renderDep(); $("depBox").scrollIntoView({block:"start"}); const f=$("depList").querySelector("input[value='']")||$("depList").querySelector("input"); if(f) f.focus(); });
+  $("depMonth").addEventListener("change",renderDep);
+  /* ====== 帳號安全：救援碼、改密碼 ====== */
+  async function acctApi(action,method,body){ const r=await fetch(LLAPI+"/api/ledger?action="+action,{method,headers:{"x-cf-user":encodeURIComponent(USER),"x-cf-key":encodeURIComponent(PW),"content-type":"application/json"},body:body?JSON.stringify(body):undefined}); let j={}; try{j=await r.json()}catch(e){} return {ok:r.ok,status:r.status,j}; }
+  let recChecked=false;
+  async function recRemind(){ if(recChecked) return; recChecked=true; try{ const a=await acctApi("account","GET"); $("recRemind").hidden=!(a.ok && !a.j.hasRecovery); }catch(e){} }
+  try{ $("nfbSel").value=window.llBadgeModeGet?llBadgeModeGet():"auto"; $("nfbSel").addEventListener("change",e=>{ if(window.llBadgeMode) llBadgeMode(e.target.value); }); }catch(e){}
+  $("recGo").addEventListener("click",()=>{ $("recRemind").hidden=true; goPage("set"); setTimeout(()=>{ const st=$("settings"); if(st) st.open=true; const b=$("secBox"); if(b){ b.scrollIntoView({behavior:"smooth",block:"center"}); } },120); });
+  async function renderSec(){ try{ const a=await acctApi("account","GET"); if(a.ok&&a.j.hasRecovery) $("recRemind").hidden=true; $("recInfo").textContent=a.ok?(a.j.hasRecovery?"已有救援碼（"+String(a.j.recAt).slice(0,10)+" 產生）；再產生一次舊的就失效":"還沒有救援碼：忘記密碼時要用，建議現在產生"):""; }catch(e){} }
+  $("recBtn").addEventListener("click",async()=>{ const a=await acctApi("recovery","POST"); if(!a.ok) return toast(a.j.error||"產生失敗（網站可能還是舊版）",true);
+    $("recShow").hidden=false; $("recShow").innerHTML="你的救援碼：<b>"+a.j.code+"</b><br>請抄下來或截圖存好（只會顯示這一次）。忘記密碼時，在登入畫面按「忘記密碼？」輸入它就能設新密碼；用過一次就失效。"; renderSec(); });
+  $("npwGo").addEventListener("click",async()=>{ const a1=$("npw1").value,a2=$("npw2").value; if(a1.length<6) return toast("新密碼至少 6 個字",true); if(a1!==a2) return toast("兩次輸入不一樣",true);
+    const a=await acctApi("changepw","POST",{newPassword:a1}); if(!a.ok) return toast(a.j.error||"改密碼失敗",true);
+    PW=a1; try{ localStorage.setItem("cf-pw",a1); }catch(e){} $("npw1").value=$("npw2").value=""; toast("密碼已改好。記得電腦的設定精靈【0b】也要改成新密碼"); });
+  $("depSave").addEventListener("click",()=>{
+    const m=$("depMonth").value; if(!/^\d{4}-\d{2}$/.test(m)) return toast("先選月份",true);
+    const banks=$("depBanks").value.split(/[,，、]/).map(x=>x.trim()).filter(Boolean);
+    const vals=[...$("depList").querySelectorAll("input")].map(i=>({bank:i.dataset.bank,v:evalAmount(i.value)})).filter(x=>i_ok(x.v));
+    function i_ok(v){ return Number.isFinite(v); }
+    act(d=>{ d.depBanks=banks.length?banks:DEPB0; d.deposits=(d.deposits||[]).filter(x=>!(x.month===m&&vals.some(v=>v.bank===x.bank)));
+      vals.forEach(v=>d.deposits.push({bank:v.bank,month:m,balance:Math.round(v.v),t:new Date().toISOString()})); }, "存款餘額已存（"+vals.length+" 家）").then(ok=>{ if(ok){ renderDep(); depRemind(); } });
+  });
+  $("cardsCnt").textContent="";
+  try{ goPage(localStorage.getItem("cf-page")||"rec"); }catch(e){ goPage("rec"); }
+
+  $("catFile").addEventListener("change",ev=>{
+    const f=ev.target.files[0]; if(!f) return; const rd=new FileReader();
+    rd.onload=async()=>{ try{ const j=JSON.parse(rd.result); if(!j||!Array.isArray(j.cards)) throw new Error("格式不對");
+        const r=await fetch(LLAPI+"/api/catalog",{method:"PUT",headers:{"content-type":"application/json","x-admin-key":$("adminKey").value},body:JSON.stringify(j)});
+        const o=await r.json().catch(()=>({})); if(!r.ok) throw new Error(o.error||("失敗 "+r.status));
+        await loadCatalog(); renderCardEdit(); renderCaps(); toast("資料庫已更新：共 "+CATALOG.cards.length+" 張卡");
+      }catch(e){ toast("資料庫更新失敗："+e.message,true); } ev.target.value=""; };
+    rd.readAsText(f);
+  });
+  function readCardEdit(){
+    const next=[];
+    for(const w of $("cardEdit").children){
+      const name=w.querySelector(".f-name").value.trim(); if(!name) continue;
+      const extra = w.dataset.cat ? {catalogId:w.dataset.cat, catalogChecked:w.dataset.chk||null} : {};
+      const old=(D.cards||[]).find(k=>k.id===w.dataset.id); if(old && old.vaulted) extra.vaulted=true; if(w.dataset.parent) extra.parentId=w.dataset.parent;
+      const num=(sel)=>{ const el=w.querySelector(sel); if(!el||el.value.trim()==="") return null; const n=Number(el.value); return n>=0?n:null; };
+      extra.rBase=num(".f-rb"); extra.rBonus=num(".f-rx"); extra.rCap=num(".f-rc");
+      const em=(w.querySelector(".f-exp")||{value:""}).value.match(/^(\d{1,2})\s*\/\s*(\d{2})$/); if(em && +em[1]>=1 && +em[1]<=12) extra.exp="20"+em[2]+"-"+String(+em[1]).padStart(2,"0");
+      const cap=evalAmount(w.querySelector(".f-cap").value), cyc=Number(w.querySelector(".f-cyc").value);
+      if(w.dataset.fav) extra.fav=true;
+      next.push({id:w.dataset.id, bank:w.querySelector(".f-bank").value, name, cap:cap>0?Math.round(cap):null, cycleDay:cyc>=1&&cyc<=31?Math.round(cyc):null,
+        cats:w.querySelector(".f-cats").value.split(/[,，、\s]+/).filter(Boolean), note:w.querySelector(".f-note").value.trim(), ...extra});
+    }
+    return next;
+  }
+  $("cardsSave").addEventListener("click",async()=>{
+    const next=readCardEdit();
+    next.forEach(c=>{ if(c.parentId && !next.some(k=>k.id===c.parentId)) delete c.parentId; });
+    const ok = await act(d=>{ d.cards=next; d.records.forEach(r=>{ const c=next.find(k=>k.id===r.cardId); if(c){ r.cardName=c.name; r.bank=c.bank; } }); }, "卡片設定已儲存，所有裝置都會更新");
+    if(ok){ renderCardEdit(); $("picker").hidden=true; $("cardsSave").classList.remove("dirty"); }
+  });
+  $("expJson").addEventListener("click",()=>{ saveFile("LifeLedger_backup_"+TODAY+".json", JSON.stringify(D,null,1), "application/json"); toast("已匯出備份，請存到 OneDrive。"); });
+  $("expCsv").addEventListener("click",()=>{
+    const lines=[["日期","金額","卡片","分類","備註","ID","建立時間"].join(",")];
+    D.records.slice().sort((a,b)=>a.date.localeCompare(b.date)||a.ts-b.ts).forEach(x=>lines.push([x.date,x.amount,x.cardName,x.category,x.note,x.id,new Date(x.ts).toISOString()].map(csvCell).join(",")));
+    saveFile("LifeLedger_records.csv", "﻿"+lines.join("\r\n")+"\r\n", "text/csv"); toast("已匯出 CSV");
+  });
+  $("impFile").addEventListener("change",ev=>{
+    const f=ev.target.files[0]; if(!f) return; const rd=new FileReader();
+    rd.onload=()=>{ try{ const j=JSON.parse(rd.result); if(!j || !Array.isArray(j.records) || !Array.isArray(j.cards)) throw 0;
+        let added=0;
+        act(d=>{ const ids=new Set(d.records.map(r=>r.id)); added=0;
+          const remap={};   // 舊卡片 id → 這個帳號裡同名卡片的 id
+          (j.cards||[]).forEach(c=>{ if(!c||!c.id) return;
+            const same=d.cards.find(k=>k.id===c.id) || d.cards.find(k=>k.name===c.name);
+            if(same){ remap[c.id]=same.id; if(same.cap==null && c.cap) Object.assign(same,{cap:c.cap,cycleDay:c.cycleDay,cats:c.cats||[],note:c.note||same.note}); }
+            else { d.cards.push(c); remap[c.id]=c.id; } });
+          j.records.forEach(r=>{ if(r && r.id && !ids.has(r.id) && r.date && r.amount>0){ const x=Object.assign({},r); if(remap[x.cardId]) x.cardId=remap[x.cardId]; d.records.push(x); added++; } });
+          if(d.budget==null && j.budget) d.budget=j.budget;
+          // 搬家（換網站）時其他資料也一起帶過來：收入、旅行、存款回填、代墊勾選
+          const mergeBy=(key,f)=>{ if(!Array.isArray(j[key])) return; d[key]=d[key]||[]; const has=new Set(d[key].map(f)); j[key].forEach(x=>{ if(x && !has.has(f(x))){ d[key].push(x); has.add(f(x)); if(key==="incomes") added++; } }); };
+          mergeBy("incomes",x=>x.id||JSON.stringify(x)); mergeBy("trips",x=>x.id||x.name); mergeBy("deposits",x=>x.bank+"|"+x.month); mergeBy("paidMarks",x=>x.k+"|"+x.t);
+          if(Array.isArray(j.depBanks) && !(d.depBanks&&d.depBanks.length)) d.depBanks=j.depBanks.slice();
+          ["prefs","budgets","catOrder"].forEach(k=>{ if(j[k]!=null && d[k]==null) d[k]=j[k]; });
+        }).then(ok=>{ if(ok){ renderAll(); renderCardEdit(); toast("已匯入：新增 "+added+" 筆記錄（含收入）；卡片、旅行、存款回填、代墊也一併帶入"); } });
+      }catch(e){ toast("這不是隨手記的備份檔。",true); } ev.target.value=""; };
+    rd.readAsText(f);
+  });
+  $("settings").addEventListener("toggle",()=>{ if($("settings").open){ renderTripEdit(); fillExportOptions(); $("budgetAll").value=D.budget||""; } });
+
+  function askPw(msg){ document.querySelector(".mon").hidden=true; $("gate").hidden=false; $("main").hidden=true; $("pwErr").textContent=msg||""; $("pw").focus(); }
+  async function start(){
+    document.querySelector(".mon").hidden=false; $("gate").hidden=true; $("main").hidden=false;
+    const had = cacheLoad(); if(had){ renderAll(); setSync(false,"顯示上次的資料，正在同步…"); } else { D = {cards:[],records:[],budget:null}; renderAll(); setSync(false,"正在讀取雲端記錄…"); }
+    busy(!had);
+    try{
+      await Promise.all([pull(), loadCatalog()]);
+      if(!D){ D = seed(); norm(); await mutate(()=>{}); }
+      norm(); cacheSave(); renderAll(); setSync(true);
+    }catch(e){
+      if(e&&e.auth){ PW=null; try{localStorage.removeItem("cf-pw");}catch(_){} askPw(e.msg||"帳號或密碼不對，請再試一次。"); }
+      else setSync(false, "無法連線雲端："+((e&&e.message)||"請檢查網路"));
+    }finally{ busy(false); }
+  }
+  async function refresh(){
+    if(syncing || !PW || $("main").hidden || document.hidden) return;
+    syncing=true;
+    try{ const before=REV; await pull(); norm(); cacheSave(); if(REV!==before) renderAll(); setSync(true); }
+    catch(e){ if(e&&e.auth) askPw("密碼已變更，請重新輸入。"); else setSync(false,"未同步：網路有問題"); }
+    finally{ syncing=false; }
+  }
+  function setMode(reg){ regMode=reg; $("tLogin").setAttribute("aria-selected",String(!reg)); $("tReg").setAttribute("aria-selected",String(reg));
+    $("invWrap").hidden=!reg; $("pwBtn").textContent=reg?"建立帳號":"登入"; $("gTitle").textContent=reg?"建立你的隨手記帳號":"登入隨手記";
+    $("pw").setAttribute("autocomplete", reg?"new-password":"current-password"); $("pwErr").textContent=""; }
+  $("tLogin").addEventListener("click",()=>setMode(false));
+  $("tReg").addEventListener("click",()=>setMode(true));
+  $("pwBtn").addEventListener("click",async()=>{
+    const u=$("uName").value.trim(), v=$("pw").value;
+    if(u.length<2){ $("pwErr").textContent="請輸入帳號（至少 2 個字）"; $("uName").focus(); return; }
+    if(v.length<6){ $("pwErr").textContent="密碼至少 6 個字"; $("pw").focus(); return; }
+    if(regMode){
+      $("pwBtn").disabled=true;
+      try{ const r=await fetch(LLAPI+"/api/ledger?action=register",{method:"POST",headers:{"content-type":"application/json"},body:JSON.stringify({user:u,password:v,invite:$("inv").value.trim()})});
+        let j={}; try{j=await r.json();}catch(e){}
+        if(!r.ok){ $("pwErr").textContent=j.error||"建立失敗（"+r.status+"）"; return; }
+      }catch(e){ $("pwErr").textContent="連不上伺服器，請檢查網路"; return; }
+      finally{ $("pwBtn").disabled=false; }
+    }
+    USER=u; PW=v; try{ localStorage.setItem("cf-user",u); localStorage.setItem("cf-pw",v); localStorage.removeItem("cf-sync-cache"); }catch(e){}
+    start();
+  });
+  $("pw").addEventListener("keydown",e=>{ if(e.key==="Enter") $("pwBtn").click(); });
+  $("fgBtn").addEventListener("click",()=>{ $("fgBox").hidden=!$("fgBox").hidden; $("fgUser").value=$("uName").value; });
+  try{ if(/[?&]forgot=1/.test(location.search)) setTimeout(()=>{ if($("fgBox").hidden) $("fgBtn").click(); },300); }catch(e){}
+  $("fgGo").addEventListener("click",async()=>{
+    const u=$("fgUser").value.trim(), c=$("fgCode").value.trim(), v=$("fgPw").value, m=$("fgMsg"); m.className="toast err";
+    if(u.length<2||!c||v.length<6){ m.textContent="帳號、救援碼都要填，新密碼至少 6 個字"; return; }
+    const body={user:u,newPassword:v}; if(/^[A-Z0-9]{4}-?[A-Z0-9]{4}-?[A-Z0-9]{4}$/i.test(c)) body.code=c; else body.admin=c;
+    try{ const r=await fetch(LLAPI+"/api/ledger?action=reset",{method:"POST",headers:{"content-type":"application/json"},body:JSON.stringify(body)}); let j={}; try{j=await r.json()}catch(e){}
+      if(!r.ok){ m.textContent=j.error||("失敗（"+r.status+"）"); return; }
+      m.className="toast ok"; m.textContent="新密碼設好了，請用新密碼登入。記得電腦的設定精靈【0b】也要改成新密碼。"; $("uName").value=u; $("pw").value=""; $("pwErr").textContent="";
+    }catch(e){ m.textContent="連不上伺服器"; }
+  });
+  if(USER) $("uName").value=USER;
+  if(/[?&]join\b/.test(location.search) && !PW) setMode(true);
+  $("syncBtn").addEventListener("click",()=>refresh());
+  $("forgetBtn").addEventListener("click",()=>{ try{ localStorage.removeItem("cf-pw"); localStorage.removeItem("cf-sync-cache"); }catch(e){} PW=null; D=null; setMode(false); askPw("已登出這台裝置。"); });
+  document.addEventListener("visibilitychange",()=>{ if(!document.hidden) refresh(); });
+  setInterval(refresh, 60000);
+  if(PW && USER) start(); else askPw("");
+})();
+</script>
+
+</body>
+</html>
