@@ -353,7 +353,8 @@ body{padding-bottom:calc(76px + env(safe-area-inset-bottom))}
 #entry .actions,#incEntry .incbtn{position:sticky;bottom:calc(70px + env(safe-area-inset-bottom));z-index:4}
 #entry .actions{background:linear-gradient(to top,var(--surface) 75%,transparent);padding-top:10px;margin-top:4px}
 @media (min-width:720px){#entry .actions,#incEntry .incbtn{bottom:84px}}
-.pcard summary .grip{display:inline-grid;place-items:center;width:30px;height:28px;border-radius:6px;color:var(--muted);font-size:14px;letter-spacing:-2px;cursor:grab;touch-action:none;user-select:none;-webkit-user-select:none}
+.pcard summary .grip{display:inline-grid;place-items:center;width:44px;height:40px;margin:-6px -4px -6px 2px;border-radius:8px;border:1px solid var(--line);background:var(--surface2);color:var(--ink2);font-size:18px;letter-spacing:-3px;cursor:grab;touch-action:none;user-select:none;-webkit-user-select:none}.pcard summary .grip:active{cursor:grabbing;background:var(--chip)}
+.pcard.dragkid{opacity:.85;border-color:var(--gold)}
 .pcard.dragging{opacity:.85;box-shadow:0 10px 24px rgba(14,32,53,.22);border-color:var(--gold);transform:scale(1.01)}
 body.nosel{user-select:none;-webkit-user-select:none}
 .pcard .fold{display:block;margin:10px 0 0 auto;font:inherit;font-size:13px;border:1px solid var(--line);background:var(--surface2);color:var(--ink2);border-radius:8px;padding:5px 14px;cursor:pointer}
@@ -462,7 +463,8 @@ html.nfbadge #entry .actions,html.nfbadge #incEntry .incbtn{bottom:calc(70px + v
     </div>
     <div class="row2">
       <div class="field"><label for="date">日期</label><input id="date" type="date" class="inp num"></div>
-      <div class="field"><label for="note">備註（商家、用途）</label><input id="note" class="inp" maxlength="60" placeholder="例如 全聯、加油"></div>
+      <div class="field"><label for="note">備註（商家、用途）</label><input id="note" class="inp" maxlength="60" placeholder="例如 全聯、加油、蝦皮手機殼"></div>
+    <label class="chk" id="pfLine"><input type="checkbox" id="pfChk"> 幫別人代墊／代刷（之後要收回，不算我的消費）</label>
     </div>
     <div class="tripbox" id="tripRow" hidden>
       <div class="tripline"><label for="tripSel" class="flabel">旅行</label><select id="tripSel" class="inp"></select></div>
@@ -952,22 +954,39 @@ html.nfbadge #entry .actions,html.nfbadge #incEntry .incbtn{bottom:calc(70px + v
   }
   // 卡片順序：按住「⋮⋮」拖曳（手機長按約 0.25 秒後開始拖）
   function dragInit(d, hd){
-    let timer=null, drag=false, sy=0;
+    // 主卡和它的「額度池」是一組：拖主卡時整組一起移；拖額度池只在同一張主卡底下調順序
+    let timer=null, drag=false, sy=0, grp=[];
+    const box=()=>d.parentNode, kids=()=>[...box().children].filter(x=>x.tagName==="DETAILS"&&x.dataset.parent===d.dataset.id);
+    const mid=(x,y)=>{ const r=x.getBoundingClientRect(); return y<r.top+r.height/2; };
     const move=e=>{ if(!drag){ if(Math.abs(e.clientY-sy)>10){ clearTimeout(timer); end(); } return; }
-      e.preventDefault(); const box=d.parentNode; const sibs=[...box.children].filter(x=>x!==d&&!x.hidden&&x.tagName==="DETAILS");
-      const tgt=sibs.find(x=>{ const r=x.getBoundingClientRect(); return e.clientY<r.top+r.height/2; }); if(box.children[[...box.children].indexOf(d)+1]!==tgt) box.insertBefore(d, tgt||null);
+      e.preventDefault(); const B=box(), all=[...B.children].filter(x=>x.tagName==="DETAILS");
+      if(!d.dataset.parent){
+        const heads=all.filter(x=>!x.hidden&&!x.dataset.parent&&x!==d);
+        const tgt=heads.find(x=>mid(x,e.clientY))||null;
+        const after=grp[grp.length-1], cur=all.slice(all.indexOf(after)+1).find(x=>!x.dataset.parent&&!x.hidden)||null;
+        if(cur!==tgt) grp.forEach(g=>B.insertBefore(g,tgt));
+      } else {
+        const sibs=all.filter(x=>x!==d&&x.dataset.parent===d.dataset.parent);
+        if(sibs.length){
+          const tgt=sibs.find(x=>mid(x,e.clientY)); const ref=tgt||sibs[sibs.length-1].nextSibling;
+          if(d.nextSibling!==ref) B.insertBefore(d,ref);
+        }
+      }
       if(e.clientY<90) window.scrollBy(0,-12); else if(e.clientY>window.innerHeight-140) window.scrollBy(0,12); };
     const end=()=>{ clearTimeout(timer); window.removeEventListener("pointermove",move); window.removeEventListener("pointerup",end); window.removeEventListener("pointercancel",end);
-      if(drag){ drag=false; d.classList.remove("dragging"); document.body.classList.remove("nosel"); cardDirty(); } };
+      if(drag){ drag=false; grp.forEach(g=>g.classList.remove("dragging","dragkid")); document.body.classList.remove("nosel"); cardDirty(); } };
     hd.addEventListener("click",e=>{ e.preventDefault(); e.stopPropagation(); });
     hd.addEventListener("contextmenu",e=>e.preventDefault());
     hd.addEventListener("pointerdown",e=>{ e.stopPropagation(); sy=e.clientY;
       window.addEventListener("pointermove",move,{passive:false}); window.addEventListener("pointerup",end); window.addEventListener("pointercancel",end);
-      timer=setTimeout(()=>{ drag=true; d.classList.add("dragging"); document.body.classList.add("nosel"); if(navigator.vibrate) navigator.vibrate(12); }, e.pointerType==="mouse"?0:250); });
+      timer=setTimeout(()=>{ drag=true; grp=d.dataset.parent?[d]:[d,...kids()]; d.classList.add("dragging"); grp.slice(1).forEach(g=>g.classList.add("dragkid")); document.body.classList.add("nosel"); if(navigator.vibrate) navigator.vibrate(12); }, e.pointerType==="mouse"?0:250); });
   }
   function renderCardEdit(list, openId){
     const box=$("cardEdit");
     list = list || D.cards;
+    { const ids=new Set(list.map(c=>c.id)), out=[];   // 額度池排在自己的主卡正下方（以前分開拖過的也自動歸位）
+      list.forEach(c=>{ if(c.parentId && ids.has(c.parentId)) return; out.push(c); list.forEach(k=>{ if(k.parentId===c.id) out.push(k); }); });
+      list=out; }
     const q=($("ceSearch").value||"").trim().toLowerCase();
     box.textContent="";
     list.forEach(c=>{
@@ -982,7 +1001,7 @@ html.nfbadge #entry .actions,html.nfbadge #incEntry .incbtn{bottom:calc(70px + v
       const ord=document.createElement("span"); ord.className="ord";
       const fv=document.createElement("button"); fv.type="button"; fv.className="fav"; fv.title="常用卡"; fv.textContent=c.fav?"★":"☆"; fv.setAttribute("aria-pressed",String(!!c.fav)); fv.setAttribute("aria-label","設為常用卡");
       fv.addEventListener("click",ev=>{ ev.preventDefault(); ev.stopPropagation(); d.dataset.fav=d.dataset.fav?"":"1"; fv.setAttribute("aria-pressed",String(!!d.dataset.fav)); fv.textContent=d.dataset.fav?"★":"☆"; cardDirty(); });
-      const hd=document.createElement("span"); hd.className="grip"; hd.textContent="⋮⋮"; hd.title="按住拖曳調整順序"; hd.setAttribute("aria-label","按住拖曳調整順序"); hd.setAttribute("role","button");
+      const hd=document.createElement("span"); hd.className="grip"; hd.textContent="⋮⋮"; hd.title=c.parentId?"按住拖曳：在同一張主卡底下調整順序":"按住拖曳調整順序（額度池會一起移動）"; hd.setAttribute("aria-label",hd.title); hd.setAttribute("role","button");
       dragInit(d,hd);
       ord.append(fv,hd); sm.appendChild(ord);
       d.appendChild(sm);
@@ -1167,9 +1186,9 @@ html.nfbadge #entry .actions,html.nfbadge #incEntry .incbtn{bottom:calc(70px + v
     toast("已加入 "+k.name+(k.capBasis==="帳單週期"?"：這張卡依帳單週期計算，請填結帳日":"")+"，記得按「儲存卡片設定」");
   }
 
-  function startEdit(x){ editId=x.id; $("amount").value=x.oamt!=null?x.oamt:x.amount; fxCur=x.oamt!=null?x.ocur:null; $("tripSel").dataset.touched="1"; $("tripSel").value=x.tripId||""; $("advChk").checked=!!x.advance; $("date").value=x.date; $("note").value=x.note||""; const c=cardOf(x); if(c) selCard=c.id; selCat=x.category;
+  function startEdit(x){ editId=x.id; $("amount").value=x.oamt!=null?x.oamt:x.amount; fxCur=x.oamt!=null?x.ocur:null; $("tripSel").dataset.touched="1"; $("tripSel").value=x.tripId||""; $("advChk").checked=!!x.advance; $("pfChk").checked=!!x.advance; $("date").value=x.date; $("note").value=x.note||""; const c=cardOf(x); if(c) selCard=c.id; selCat=x.category;
     renderTripRow(); $("tripSel").value=x.tripId||""; renderTripRow(); $("formTitle").textContent="編輯這筆"; $("saveBtn").textContent="更新"; $("cancelEdit").hidden=false; renderChips(); $("entry").scrollIntoView({behavior:"smooth",block:"start"}); goPage("rec"); $("amount").focus(); }
-  function endEdit(){ editId=null; delete $("tripSel").dataset.touched; $("advChk").checked=false; fxCur=null; setTimeout(renderTripRow,0); $("formTitle").textContent="記一筆"; $("saveBtn").textContent="記下來"; $("cancelEdit").hidden=true; $("amount").value=""; $("note").value=""; }
+  function endEdit(){ editId=null; delete $("tripSel").dataset.touched; $("advChk").checked=false; $("pfChk").checked=false; fxCur=null; setTimeout(renderTripRow,0); $("formTitle").textContent="記一筆"; $("saveBtn").textContent="記下來"; $("cancelEdit").hidden=true; $("amount").value=""; $("note").value=""; }
 
   /* ====== 匯出／匯入 ====== */
   function saveFile(name, text, type){ saveBlob(name, new Blob([text],{type})).catch(e=>toast("匯出沒有成功："+((e&&e.message)||""),true)); }
@@ -1188,6 +1207,7 @@ html.nfbadge #entry .actions,html.nfbadge #incEntry .incbtn{bottom:calc(70px + v
     const date=$("date").value||TODAY;
     const rec={id:editId||uid(), date, amount:Math.round(amt*100)/100, cardId:card.id, cardName:card.name, bank:card.bank, category:selCat||"其他", note:$("note").value.trim(), ts:Date.now()};
     const trip=(D.trips||[]).length ? curTrip() : null;
+    if($("pfChk").checked && !trip) rec.advance=true;
     if(trip){ rec.tripId=trip.id; if($("advChk").checked) rec.advance=true;
       if(fxCur){ const rate=fxRate(); if(!(rate>0)){ toast("還沒有 "+fxCur+" 的匯率，請到「旅行」分頁輸入",true); return; }
         rec.oamt=Math.round(amt*100)/100; rec.ocur=fxCur; rec.rate=rate; rec.amount=Math.round(amt*rate); } }
@@ -1541,7 +1561,7 @@ html.nfbadge #entry .actions,html.nfbadge #incEntry .incbtn{bottom:calc(70px + v
     [{cur:null,label:"TWD"}].concat(cs.map(c=>({cur:c.cur,label:c.cur}))).forEach(o=>{
       const b=document.createElement("button"); b.type="button"; b.textContent=o.label; b.setAttribute("aria-selected",String(fxCur===o.cur));
       b.addEventListener("click",()=>{ fxCur=o.cur; renderTripRow(); }); tabs.appendChild(b); });
-    $("advChk").parentElement.hidden = !t;
+    $("advChk").parentElement.hidden = !t; $("pfLine").hidden = !!t;
     $("amtCur").textContent = fxCur || "NT$";
     updateFxHint();
   }
