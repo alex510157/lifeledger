@@ -70,6 +70,9 @@ button,input,select{font:inherit;color:inherit}
 .top{display:flex;align-items:center;justify-content:space-between;gap:8px;flex-wrap:nowrap}
 .top .brand{margin-right:auto}
 .topr{display:flex;align-items:center;gap:6px;margin-left:auto;flex:none}
+.swmenu{position:relative}.swmenu>summary{list-style:none;display:grid;place-items:center;cursor:pointer}.swmenu>summary::-webkit-details-marker{display:none}
+.swpop{position:absolute;right:0;top:calc(100% + 6px);z-index:50;min-width:150px;padding:6px;border-radius:12px;background:var(--surface);border:1px solid var(--line);color:var(--ink);box-shadow:0 8px 24px rgba(0,0,0,.18);display:flex;flex-direction:column}
+.swpop a{padding:10px 12px;border-radius:8px;text-decoration:none;color:inherit;font-weight:600;font-size:14px}.swpop a:hover{background:rgba(127,127,127,.12)}
 .brand small{white-space:nowrap}
 .sharebtn{display:inline-flex;align-items:center;justify-content:center;width:36px;height:36px;border:1px solid var(--line);background:var(--surface);color:var(--ink);border-radius:50%;cursor:pointer;flex:none}
 .sharebtn:active{transform:scale(.97)}
@@ -379,6 +382,8 @@ html.nfbadge #entry .actions,html.nfbadge #incEntry .incbtn{bottom:calc(70px + v
   <header class="top">
     <div class="brand"><small>LIFELEDGER · 生活總帳</small><b>隨手記</b></div>
     <div class="topr">
+    <details class="swmenu"><summary class="sharebtn" aria-label="切換到月報或生活帳本" title="切換：月報／生活帳本"><svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" aria-hidden="true"><rect x="3" y="3" width="7" height="7" rx="1.5"/><rect x="14" y="3" width="7" height="7" rx="1.5"/><rect x="3" y="14" width="7" height="7" rx="1.5"/><rect x="14" y="14" width="7" height="7" rx="1.5"/></svg></summary>
+      <div class="swpop" role="menu"><a role="menuitem" href="view.html?p=report">📅 月報</a><a role="menuitem" href="view.html?p=book">📒 生活帳本</a></div></details>
     <button type="button" class="sharebtn" id="themeApp" aria-label="切換深淺色" title="深淺色：自動 → 淺色 → 深色"><svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true"><circle cx="12" cy="12" r="8"/><path d="M12 4a8 8 0 0 0 0 16z" fill="currentColor"/></svg></button>
     <button type="button" class="sharebtn" id="shareApp" aria-label="分享隨手記給朋友" title="分享隨手記給朋友（只分享網址，不含你的資料）"><svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="18" cy="5" r="3"/><circle cx="6" cy="12" r="3"/><circle cx="18" cy="19" r="3"/><path d="M8.6 13.5l6.8 4M15.4 6.5l-6.8 4"/></svg></button>
     <nav class="mon" aria-label="切換月份">
@@ -1200,6 +1205,7 @@ html.nfbadge #entry .actions,html.nfbadge #incEntry .incbtn{bottom:calc(70px + v
   $("prevM").addEventListener("click",()=>{ M=shiftM(M,-1); renderAll(); });
   $("nextM").addEventListener("click",()=>{ M=shiftM(M,1); renderAll(); });
   $("cancelEdit").addEventListener("click",endEdit);
+  document.addEventListener("click",e=>{document.querySelectorAll(".swmenu[open]").forEach(d=>{if(!d.contains(e.target))d.open=false})});
   $("instChk").addEventListener("change",()=>{ $("instBox").hidden=!$("instChk").checked;
     if($("instChk").checked && !$("instS").value){ const d=new Date(($("date").value||new Date().toISOString().slice(0,10))+"T00:00"); d.setDate(1); d.setMonth(d.getMonth()+1); $("instS").value=d.getFullYear()+"-"+String(d.getMonth()+1).padStart(2,"0"); } });
   [["tabCard","card"],["tabBank","bank"],["tabCat","cat"]].forEach(([id,mode])=>$(id).addEventListener("click",()=>{ brkMode=mode; ["tabCard","tabBank","tabCat"].forEach(t=>$(t).setAttribute("aria-selected",String(t===id))); renderBreakdown(); }));
