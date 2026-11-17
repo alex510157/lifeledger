@@ -360,7 +360,7 @@ body.nosel{user-select:none;-webkit-user-select:none}
 .pcard .fold{display:block;margin:10px 0 0 auto;font:inherit;font-size:13px;border:1px solid var(--line);background:var(--surface2);color:var(--ink2);border-radius:8px;padding:5px 14px;cursor:pointer}
 .remind{display:flex;align-items:center;gap:10px;justify-content:space-between;background:color-mix(in srgb,var(--gold) 16%,var(--surface));border:1px solid color-mix(in srgb,var(--gold) 55%,transparent);border-radius:12px;padding:10px 12px;font-size:13.5px}
 .remind .btn{flex:none;padding:6px 12px}
-.rlinks{display:grid;grid-template-columns:1fr 1fr;gap:10px;order:-1}.rl{display:flex;flex-direction:column;gap:2px;padding:12px 14px;border:1px solid var(--line);border-radius:12px;background:var(--surface);text-decoration:none;color:var(--ink)}.rl span{font-size:12px;color:var(--muted)}
+#rfNow{grid-column:1/-1}#instLine{flex-wrap:wrap}#instBox input{height:auto}.rlinks{display:grid;grid-template-columns:1fr 1fr;gap:10px;order:-1}.rl{display:flex;flex-direction:column;gap:2px;padding:12px 14px;border:1px solid var(--line);border-radius:12px;background:var(--surface);text-decoration:none;color:var(--ink)}.rl span{font-size:12px;color:var(--muted)}
 .deptop{display:flex;flex-wrap:wrap;gap:10px;align-items:center;margin:6px 0}.deptop label{display:flex;gap:6px;align-items:center;font-size:13px}
 .deplist{display:flex;flex-direction:column;gap:6px}.deprow{display:grid;grid-template-columns:7em 1fr;gap:8px;align-items:center;font-size:13.5px}.deprow small{grid-column:2;color:var(--muted);font-size:11.5px;margin-top:-4px}
 .depbanks summary{cursor:pointer;font-size:13px;color:var(--ink2);margin:6px 0}
@@ -465,7 +465,7 @@ html.nfbadge #entry .actions,html.nfbadge #incEntry .incbtn{bottom:calc(70px + v
       <div class="field"><label for="date">日期</label><input id="date" type="date" class="inp num"></div>
       <div class="field"><label for="note">備註（商家、用途）</label><input id="note" class="inp" maxlength="60" placeholder="例如 全聯、加油、蝦皮手機殼"></div>
     <label class="chk" id="pfLine"><input type="checkbox" id="pfChk"> 幫別人代墊／代刷（之後要收回，不算我的消費）</label>
-    <label class="chk" id="instLine"><input type="checkbox" id="instChk"> 分期付款（無卡分期、每月自己轉帳繳）<span id="instBox" hidden>・共 <input id="instN" type="number" inputmode="numeric" min="2" max="120" value="12" class="inp num" style="width:64px;padding:4px 6px;display:inline-block"> 期</span></label>
+    <label class="chk" id="instLine"><input type="checkbox" id="instChk"> 分期／分攤（無卡分期，或機票、手機等大筆想分月算）<span id="instBox" hidden>・共 <input id="instN" type="number" inputmode="numeric" min="2" max="120" value="12" class="inp num" style="width:64px;padding:4px 6px;display:inline-block"> 期・從 <input id="instS" type="month" class="inp" style="width:150px;padding:4px 6px;display:inline-block"> 開始算</span></label>
     </div>
     <div class="tripbox" id="tripRow" hidden>
       <div class="tripline"><label for="tripSel" class="flabel">旅行</label><select id="tripSel" class="inp"></select></div>
@@ -944,7 +944,7 @@ html.nfbadge #entry .actions,html.nfbadge #incEntry .incbtn{bottom:calc(70px + v
         const it=document.createElement("div"); it.className="item";
         const w=document.createElement("div"); w.className="what"; w.textContent=x.note||x.category;
         const a=document.createElement("div"); a.className="amt2"; a.textContent=fmt(x.amount);
-        const m=document.createElement("div"); m.className="meta"; m.appendChild(badge(bankOf(x))); const cn=document.createElement("span"); cn.textContent=(lgMode!=="new"&&lgMode!=="old"?Number(x.date.slice(5,7))+"/"+Number(x.date.slice(8))+"・":"")+x.cardName+(x.note?"・"+x.category:"")+(x.oamt!=null?"・"+x.ocur+" "+fmt(x.oamt):"")+(x.tripId&&tripOf(x)?"・旅行："+tripOf(x).name:"")+(x.advance?"・代墊":"")+(x.inst?"・分期 "+x.inst+" 期":""); m.appendChild(cn);
+        const m=document.createElement("div"); m.className="meta"; m.appendChild(badge(bankOf(x))); const cn=document.createElement("span"); cn.textContent=(lgMode!=="new"&&lgMode!=="old"?Number(x.date.slice(5,7))+"/"+Number(x.date.slice(8))+"・":"")+x.cardName+(x.note?"・"+x.category:"")+(x.oamt!=null?"・"+x.ocur+" "+fmt(x.oamt):"")+(x.tripId&&tripOf(x)?"・旅行："+tripOf(x).name:"")+(x.advance?"・代墊":"")+(x.inst?"・分期 "+x.inst+" 期"+(x.instStart?"（"+(+x.instStart.slice(5))+" 月起）":""):""); m.appendChild(cn);
         const ops=document.createElement("div"); ops.className="ops";
         const eb=document.createElement("button"); eb.type="button"; eb.textContent="編輯"; eb.addEventListener("click",()=>startEdit(x));
         const del=document.createElement("button"); del.type="button"; del.textContent="刪除";
@@ -1187,7 +1187,7 @@ html.nfbadge #entry .actions,html.nfbadge #incEntry .incbtn{bottom:calc(70px + v
     toast("已加入 "+k.name+(k.capBasis==="帳單週期"?"：這張卡依帳單週期計算，請填結帳日":"")+"，記得按「儲存卡片設定」");
   }
 
-  function startEdit(x){ editId=x.id; $("amount").value=x.oamt!=null?x.oamt:x.amount; fxCur=x.oamt!=null?x.ocur:null; $("tripSel").dataset.touched="1"; $("tripSel").value=x.tripId||""; $("advChk").checked=!!x.advance; $("pfChk").checked=!!x.advance; $("instChk").checked=!!x.inst; $("instN").value=x.inst||12; $("instBox").hidden=!x.inst; $("date").value=x.date; $("note").value=x.note||""; const c=cardOf(x); if(c) selCard=c.id; selCat=x.category;
+  function startEdit(x){ editId=x.id; $("amount").value=x.oamt!=null?x.oamt:x.amount; fxCur=x.oamt!=null?x.ocur:null; $("tripSel").dataset.touched="1"; $("tripSel").value=x.tripId||""; $("advChk").checked=!!x.advance; $("pfChk").checked=!!x.advance; $("instChk").checked=!!x.inst; $("instN").value=x.inst||12; $("instBox").hidden=!x.inst; $("instS").value=x.instStart||""; $("date").value=x.date; $("note").value=x.note||""; const c=cardOf(x); if(c) selCard=c.id; selCat=x.category;
     renderTripRow(); $("tripSel").value=x.tripId||""; renderTripRow(); $("formTitle").textContent="編輯這筆"; $("saveBtn").textContent="更新"; $("cancelEdit").hidden=false; renderChips(); $("entry").scrollIntoView({behavior:"smooth",block:"start"}); goPage("rec"); $("amount").focus(); }
   function endEdit(){ editId=null; delete $("tripSel").dataset.touched; $("advChk").checked=false; $("pfChk").checked=false; $("instChk").checked=false; $("instBox").hidden=true; fxCur=null; setTimeout(renderTripRow,0); $("formTitle").textContent="記一筆"; $("saveBtn").textContent="記下來"; $("cancelEdit").hidden=true; $("amount").value=""; $("note").value=""; }
 
@@ -1200,7 +1200,8 @@ html.nfbadge #entry .actions,html.nfbadge #incEntry .incbtn{bottom:calc(70px + v
   $("prevM").addEventListener("click",()=>{ M=shiftM(M,-1); renderAll(); });
   $("nextM").addEventListener("click",()=>{ M=shiftM(M,1); renderAll(); });
   $("cancelEdit").addEventListener("click",endEdit);
-  $("instChk").addEventListener("change",()=>{ $("instBox").hidden=!$("instChk").checked; });
+  $("instChk").addEventListener("change",()=>{ $("instBox").hidden=!$("instChk").checked;
+    if($("instChk").checked && !$("instS").value){ const d=new Date(($("date").value||new Date().toISOString().slice(0,10))+"T00:00"); d.setDate(1); d.setMonth(d.getMonth()+1); $("instS").value=d.getFullYear()+"-"+String(d.getMonth()+1).padStart(2,"0"); } });
   [["tabCard","card"],["tabBank","bank"],["tabCat","cat"]].forEach(([id,mode])=>$(id).addEventListener("click",()=>{ brkMode=mode; ["tabCard","tabBank","tabCat"].forEach(t=>$(t).setAttribute("aria-selected",String(t===id))); renderBreakdown(); }));
   $("entry").addEventListener("submit",async ev=>{
     ev.preventDefault();
@@ -1210,7 +1211,7 @@ html.nfbadge #entry .actions,html.nfbadge #incEntry .incbtn{bottom:calc(70px + v
     const rec={id:editId||uid(), date, amount:Math.round(amt*100)/100, cardId:card.id, cardName:card.name, bank:card.bank, category:selCat||"其他", note:$("note").value.trim(), ts:Date.now()};
     const trip=(D.trips||[]).length ? curTrip() : null;
     if($("pfChk").checked && !trip) rec.advance=true;
-    if($("instChk").checked){ const n=parseInt($("instN").value,10); if(!(n>=2&&n<=120)){ toast("分期期數請填 2～120",true); return; } rec.inst=n; }
+    if($("instChk").checked){ const n=parseInt($("instN").value,10); if(!(n>=2&&n<=120)){ toast("分期期數請填 2～120",true); return; } rec.inst=n; if(/^\d{4}-\d{2}$/.test($("instS").value)) rec.instStart=$("instS").value; }
     if(trip){ rec.tripId=trip.id; if($("advChk").checked) rec.advance=true;
       if(fxCur){ const rate=fxRate(); if(!(rate>0)){ toast("還沒有 "+fxCur+" 的匯率，請到「旅行」分頁輸入",true); return; }
         rec.oamt=Math.round(amt*100)/100; rec.ocur=fxCur; rec.rate=rate; rec.amount=Math.round(amt*rate); } }
@@ -1929,8 +1930,12 @@ html.nfbadge #entry .actions,html.nfbadge #incEntry .incbtn{bottom:calc(70px + v
     const main=$("main"), anchor=$("bnav"), vt=document.querySelector(".vtabs");
     ["rec","list","ana","cards","set"].forEach(k=>{ const d=document.createElement("div"); d.className="page"; d.id="pg-"+k; d.hidden=true; main.insertBefore(d,anchor); PG[k]=d; });
     PG.rec.append($("recRemind"),$("depRemind"),$("slip"),$("entry"),$("incEntry"));
-    const lk=document.createElement("div"); lk.className="rlinks"; lk.innerHTML='<a class="rl" href="view.html?p=report"><b>📅 月報</b><span>每月刷卡、回饋、收支</span></a><a class="rl" href="view.html?p=book"><b>📒 生活帳本</b><span>全部期間、勾代墊、查帳</span></a>';
+    const lk=document.createElement("div"); lk.className="rlinks"; lk.innerHTML='<a class="rl" href="view.html?p=report"><b>📅 月報</b><span>每月刷卡、回饋、收支</span></a><a class="rl" href="view.html?p=book"><b>📒 生活帳本</b><span>全部期間、勾代墊、查帳</span></a><a class="rl" href="#" id="rfNow"><b>⟳ 請電腦立即更新</b><span>不用等排程，10～15 分鐘內月報、帳本就是最新的</span></a>';
     PG.ana.appendChild(lk);
+    lk.querySelector("#rfNow").addEventListener("click",async e=>{ e.preventDefault();
+      const pend=(D.refreshReq||0)>(D.refreshDone||0)&&Date.now()-D.refreshReq<3*3600e3;
+      if(pend){ toast("已經請電腦更新了，10～15 分鐘內完成（電腦要開著）"); return; }
+      if(await act(d=>{ d.refreshReq=Date.now(); },"已請電腦更新：10～15 分鐘內完成（電腦要開著、沒睡著）")) lk.querySelector("#rfNow span").textContent="已送出・"+new Date().toLocaleTimeString("zh-TW",{hour:"2-digit",minute:"2-digit"})+"，好了月報、帳本會是最新的"; });
     const vt2=vt.cloneNode(false); vt2.setAttribute("aria-label","明細"); vt2.append($("vLg"),$("vInc")); PG.list.append(vt2,$("lgSec"),$("incSec"));
     vt.setAttribute("aria-label","分析"); PG.ana.append(vt,$("capSec"),$("brkSec"),$("tripSec"));
     PG.cards.append($("cardsSec")); $("cardsSec").hidden=false;
