@@ -42,6 +42,42 @@ button{width:100%;margin-top:16px;font:inherit;font-weight:700;padding:11px;bord
 </div>
 <script>window.LL_API="https://alexledger.netlify.app";</script>
 <script>
+/* 月報／生活帳本上方的切換列：隨手記・月報・生活帳本・⟳ 立即更新（請電腦馬上重算，不用等排程） */
+function llBar(){
+  if(document.getElementById('ll-sw'))return;
+  var O=window.LL_ONLINE||{},API=O.api||'',P=O.page;
+  var st=document.createElement('style');
+  st.textContent='#ll-sw{position:fixed;right:max(12px,env(safe-area-inset-right));bottom:max(12px,env(safe-area-inset-bottom));z-index:9999;display:flex;gap:2px;padding:4px;border-radius:999px;background:rgba(14,32,53,.92);box-shadow:0 6px 20px rgba(0,0,0,.25);font:600 13px/1 "Noto Sans TC","PingFang TC","Microsoft JhengHei",system-ui,sans-serif;-webkit-backdrop-filter:blur(8px);backdrop-filter:blur(8px)}'+
+    '#ll-sw a,#ll-sw button{all:unset;cursor:pointer;color:#dfe6ee;padding:9px 12px;border-radius:999px;white-space:nowrap}#ll-sw a:hover,#ll-sw button:hover{background:rgba(255,255,255,.12)}'+
+    '#ll-sw .on{background:#d8b46a;color:#0b1420}#ll-sw .rf.busy{color:#d8b46a}#ll-sw .rf.ok{background:#2e8b57;color:#fff}'+
+    '#ll-msg{position:fixed;right:max(12px,env(safe-area-inset-right));bottom:calc(max(12px,env(safe-area-inset-bottom)) + 52px);z-index:9999;max-width:min(320px,calc(100vw - 24px));background:#0e2035;color:#eef2f6;padding:10px 12px;border-radius:12px;font:13px/1.5 "Noto Sans TC","PingFang TC","Microsoft JhengHei",system-ui,sans-serif;box-shadow:0 6px 20px rgba(0,0,0,.25)}'+
+    '@media (max-width:520px){#ll-sw{left:50%;right:auto;transform:translateX(-50%)}#ll-sw a,#ll-sw button{padding:9px 10px}#ll-msg{left:12px;right:12px;max-width:none}}@media print{#ll-sw,#ll-msg{display:none}}';
+  document.head.appendChild(st);
+  var b=document.createElement('nav');b.id='ll-sw';b.setAttribute('aria-label','切換');
+  b.innerHTML='<a href="./">📝 隨手記</a><a href="view.html?p=report"'+(P==='report'?' class="on" aria-current="page"':'')+'>📅 月報</a><a href="view.html?p=book"'+(P==='book'?' class="on" aria-current="page"':'')+'>📒 帳本</a><button type="button" class="rf" title="請電腦馬上更新">⟳ 更新</button>';
+  document.body.appendChild(b);
+  var rf=b.querySelector('.rf'),msg=null,T=0;
+  function say(t,btn){if(!msg){msg=document.createElement('div');msg.id='ll-msg';msg.setAttribute('role','status');document.body.appendChild(msg)}msg.innerHTML=t;msg.hidden=false;clearTimeout(T);if(!btn)T=setTimeout(function(){msg.hidden=true},9000)}
+  function cred(){try{return [localStorage.getItem('cf-user')||'',localStorage.getItem('cf-pw')||'']}catch(e){return ['','']}}
+  function H(){var c=cred();return {'content-type':'application/json','x-cf-user':encodeURIComponent(c[0]),'x-cf-key':encodeURIComponent(c[1])}}
+  async function get(){var r=await fetch(API+'/api/ledger',{headers:H(),cache:'no-store'});if(!r.ok)throw new Error('連不上（'+r.status+'）');return r.json()}
+  var t0=O.saved?new Date(O.saved):null,hm=function(d){return (d.getMonth()+1)+'/'+d.getDate()+' '+String(d.getHours()).padStart(2,'0')+':'+String(d.getMinutes()).padStart(2,'0')};
+  if(t0&&!isNaN(t0))rf.title='這份是 '+hm(t0)+' 更新的・按一下請電腦馬上更新';
+  var REQ=0,POLL=0;
+  function waiting(){rf.className='rf busy';rf.textContent='⟳ 更新中…';clearInterval(POLL);POLL=setInterval(check,45000)}
+  async function check(){try{var d=(await get()).data||{};if((d.refreshDone||0)>=REQ&&REQ){clearInterval(POLL);rf.className='rf ok';rf.textContent='✓ 好了・重新載入';rf.onclick=function(){location.reload()};say(d.refreshOk===false?'電腦更新時出了問題，請看電腦上的「紀錄\\daily_log.txt」。':'電腦更新好了，按「重新載入」看最新的。',1)}}catch(e){}}
+  (async function(){try{var d=(await get()).data||{};if((d.refreshReq||0)>(d.refreshDone||0)&&Date.now()-d.refreshReq<3*3600e3){REQ=d.refreshReq;waiting()}}catch(e){}})();
+  rf.onclick=async function(){
+    if(rf.classList.contains('busy')){say('已經請電腦更新了，通常 10～15 分鐘內完成（電腦要開著、沒睡著）。好了這個按鈕會變綠色。');return}
+    rf.textContent='⟳ 送出中…';
+    try{
+      for(var k=0;k<3;k++){var j=await get(),d=j.data||{};REQ=Date.now();d.refreshReq=REQ;
+        var r=await fetch(API+'/api/ledger',{method:'PUT',headers:H(),cache:'no-store',body:JSON.stringify({base:j.rev,data:d})});
+        if(r.ok)break;if(r.status!==409)throw new Error('存不進去（'+r.status+'）')}
+      waiting();say('已請電腦更新：通常 <b>10～15 分鐘</b>內完成（電腦要開著、沒睡著）。好了這個按鈕會變綠色，按一下重新載入。');
+    }catch(e){rf.textContent='⟳ 更新';say('沒送出：'+(e.message||'網路有問題'))}
+  };
+}
 (function(){
   var API=/^https?:\/\//.test(window.LL_API)?window.LL_API.replace(/\/$/,''):'';
   var P=(new URLSearchParams(location.search).get('p')==='book')?'book':'report';
@@ -73,6 +109,8 @@ button{width:100%;margin-top:16px;font:inherit;font-weight:700;padding:11px;bord
     }catch(e){ $('f').hidden=false; return err('登入成功，但這份內容是用舊密碼加密的：剛改過或重設過密碼的話，請在電腦上雙擊「設定精靈.bat」→【0b】填新密碼，再雙擊「立即更新月報.bat」，之後就能用新密碼打開。'); }
     try{localStorage.setItem('cf-user',user);localStorage.setItem('cf-pw',pw);}catch(e){}
     html=html.replace(/<head([^>]*)>/i,'<head$1><script>window.LL_ONLINE={page:"'+P+'",saved:"'+(j.savedAt||'')+'",api:"'+API+'"};<\/script>');
+    html=html.replace(/<\/body>(?![\s\S]*<\/body>)/i,'<script>('+llBar.toString()+')()<\/script></body>');
+    if(!/llBar|ll-sw/.test(html)) html+='<script>('+llBar.toString()+')()<\/script>';
     document.open(); document.write(html); document.close();
   }
   $('f').addEventListener('submit',function(e){e.preventDefault();open_($('u').value.trim(),$('pw').value).catch(function(x){err('發生錯誤：'+x.message)})});
