@@ -32,16 +32,17 @@
     "incomes 格式錯": {data:{records:[], cards:[], incomes:"x"}, rev:7},
     "沒有 rev": {data:ledger()},
     "rev 和送出的一樣": {data:ledger(), rev:5},
+    "rev 是字串": {data:ledger(), rev:"7"},
+    "rev 是負數": {data:ledger(), rev:-1},
+    "rev 是小數": {data:ledger(), rev:7.5},
     "整個回應是空的": null,
   };
   Object.entries(badConflicts).forEach(([label, j]) => {
     test("mutate：409 回應不可信（" + label + "）→ 停下、只送出一次、不使用預設資料、目前資料不被改動", async () => {
       const local = ledger(); const before = JSON.stringify(local);
       const api = fakeApi([{status:409, j}]);
-      let adopted = 0;
-      await rejects(S.mutate({api, data:local, rev:5, fn:addRec("r2"), onAdopt:()=>adopted++}), e => eq(e.code, "conflict_unsafe"));
+      await rejects(S.mutate({api, data:local, rev:5, fn:addRec("r2")}), e => eq(e.code, "conflict_unsafe"));
       eq(api.calls.length, 1, "只能送出一次");
-      eq(adopted, 0, "不能採用不可信的資料");
       eq(JSON.stringify(local), before, "目前資料不能被改動");
       // 唯一一次送出的內容是「目前帳本＋這筆修改」，不是空帳本或預設帳本
       eq(api.calls[0].body.data.records.map(x=>x.id), ["r1","r2"]);
@@ -51,11 +52,76 @@
   test("mutate：409 帶有完整的最新資料 → 用最新資料重套修改，別台裝置的記錄不會被蓋掉", async () => {
     const remote = ledger(); remote.records.push({id:"rX", date:"2026-11-01", amount:9, cardId:"c1"});
     const api = fakeApi([{status:409, j:{data:remote, rev:8}}, {status:200, j:{rev:9}}]);
-    let adopted = null;
-    const r = await S.mutate({api, data:ledger(), rev:5, fn:addRec("r2"), onAdopt:c=>adopted=c});
+    const local = ledger(); const before = JSON.stringify(local);
+    const r = await S.mutate({api, data:local, rev:5, fn:addRec("r2")});
     eq(api.calls.length, 2); eq(api.calls[1].body.base, 8);
     eq(api.calls[1].body.data.records.map(x=>x.id), ["r1","rX","r2"]);
-    eq(adopted.rev, 8); eq(r.rev, 9);
+    eq(r.rev, 9); eq(r.data.records.map(x=>x.id), ["r1","rX","r2"]);
+    eq(JSON.stringify(local), before, "傳入的資料本身不被改動，結果只從回傳值拿");
+  });
+
+  /* ---------- 409 之後重試失敗：不能提前覆蓋本機資料 ---------- */
+  // 模擬 index.html 的外層狀態：只有 mutate 成功時才更新 D、REV、快取
+  async function outerSave(responses){
+    const outer = {D:ledger(), REV:5}; outer.cache = JSON.stringify({rev:outer.REV, data:outer.D});
+    const before = JSON.stringify(outer);
+    const api = fakeApi(responses);
+    let err = null;
+    try{ const r = await S.mutate({api, data:outer.D, rev:outer.REV, fn:addRec("r2")}); outer.D = r.data; outer.REV = r.rev; outer.cache = JSON.stringify({rev:r.rev, data:r.data}); }
+    catch(e){ err = e; }
+    return {outer, before, api, err};
+  }
+  const remoteWithX = () => { const d = ledger(); d.records.push({id:"rX", date:"2026-11-01", amount:9, cardId:"c1"}); return d; };
+  test("409 收到有效資料後，第二次 PUT 回 200 但缺 rev → 本機資料、版本號、快取都沒有被提前覆蓋", async () => {
+    const {outer, before, api, err} = await outerSave([{status:409, j:{data:remoteWithX(), rev:8}}, {status:200, j:{}}]);
+    eq(err && err.code, "bad_response"); eq(api.calls.length, 2);
+    eq(JSON.stringify(outer), before, "D、REV、快取都要和存檔前一模一樣");
+  });
+  test("409 收到有效資料後，第二次 PUT 回 HTTP 500 → 本機資料、版本號、快取都沒有被提前覆蓋", async () => {
+    const {outer, before, api, err} = await outerSave([{status:409, j:{data:remoteWithX(), rev:8}}, {status:500, j:{error:"server"}}]);
+    eq(err && err.code, "save_failed"); eq(api.calls.length, 2);
+    eq(JSON.stringify(outer), before);
+  });
+  test("409 收到有效資料後，第二次 PUT 回 200 但 rev 沒有比 base 新 → 不提前覆蓋", async () => {
+    const {outer, before, err} = await outerSave([{status:409, j:{data:remoteWithX(), rev:8}}, {status:200, j:{rev:8}}]);
+    eq(err && err.code, "bad_response"); eq(JSON.stringify(outer), before);
+  });
+  test("409 收到有效資料後，第二次 PUT 回 401 → 不提前覆蓋", async () => {
+    const {outer, before, err} = await outerSave([{status:409, j:{data:remoteWithX(), rev:8}}, {status:401, j:{error:"bad"}}]);
+    assert(err && err.auth === true); eq(JSON.stringify(outer), before);
+  });
+  test("409 收到有效資料後，連續 409 用完重試次數 → 不提前覆蓋", async () => {
+    const {outer, before, err} = await outerSave([{status:409, j:{data:remoteWithX(), rev:8}}, {status:409, j:{data:remoteWithX(), rev:9}}, {status:409, j:{data:remoteWithX(), rev:10}}]);
+    eq(err && err.code, "conflict_retry"); eq(JSON.stringify(outer), before);
+  });
+  test("409 收到有效資料後，第二次 PUT 時修改函式丟出錯誤 → 不提前覆蓋", async () => {
+    const outer = {D:ledger(), REV:5}; const before = JSON.stringify(outer);
+    let n = 0; const api = fakeApi([{status:409, j:{data:remoteWithX(), rev:8}}]);
+    await rejects(S.mutate({api, data:outer.D, rev:outer.REV, fn:d=>{ if(++n === 2) throw new Error("conflict on retry"); d.records.push({id:"r2"}); }}), e => eq(e.message, "conflict on retry"));
+    eq(JSON.stringify(outer), before);
+  });
+  test("mutate 不再接受 onAdopt：重試期間不會通知外層", async () => {
+    let called = 0;
+    const api = fakeApi([{status:409, j:{data:remoteWithX(), rev:8}}, {status:500, j:{}}]);
+    await rejects(S.mutate({api, data:ledger(), rev:5, fn:addRec("r2"), onAdopt:()=>called++}));
+    eq(called, 0, "不能在成功前通知外層更新資料");
+  });
+
+  /* ---------- 送出前檢查目前的 rev ---------- */
+  const badLocalRevs = {"undefined": undefined, "null": null, "字串": "5", "負數": -1, "小數": 1.5, "NaN": NaN, "物件": {}};
+  Object.entries(badLocalRevs).forEach(([label, rev]) => {
+    test("mutate：目前的 rev 無效（" + label + "）→ 不送出 PUT、資料不被改動", async () => {
+      const local = ledger(); const before = JSON.stringify(local);
+      const api = fakeApi([]);
+      await rejects(S.mutate({api, data:local, rev, fn:addRec("r2")}), e => eq(e.code, "bad_local_rev"));
+      eq(api.calls.length, 0, "不能送出");
+      eq(JSON.stringify(local), before);
+    });
+  });
+  test("mutate：目前的 rev 是 0（新帳號）可以送出", async () => {
+    const api = fakeApi([{status:200, j:{rev:1}}]);
+    const r = await S.mutate({api, data:ledger(), rev:0, fn:addRec("r2")});
+    eq(api.calls[0].body.base, 0); eq(r.rev, 1);
   });
 
   test("mutate：連續 409 三次 → conflict_retry，不會無限重送", async () => {
@@ -108,6 +174,11 @@
     "rev 是空字串": {rev:""},
     "rev 是 NaN": {rev:NaN},
     "rev 是 Infinity": {rev:Infinity},
+    "rev 是字串數字": {rev:"6"},
+    "rev 是負數": {rev:-1},
+    "rev 是小數": {rev:6.5},
+    "rev 等於送出的 base": {rev:5},
+    "rev 比送出的 base 舊": {rev:4},
     "整個回應是 null": null,
   };
   Object.entries(bad200).forEach(([label, j]) => {
@@ -119,10 +190,10 @@
       eq(JSON.stringify(local), before, "目前資料不能被改動");
     });
   });
-  test("mutate：200 的 rev 是字串（非空）也接受", async () => {
-    const api = fakeApi([{status:200, j:{rev:"abc123"}}]);
-    const r = await S.mutate({api, data:ledger(), rev:"abc122", fn:addRec("r2")});
-    eq(r.rev, "abc123");
+  test("mutate：200 的 rev 是比 base 大的整數 → 接受（後端回 base + 1）", async () => {
+    const api = fakeApi([{status:200, j:{rev:6}}]);
+    const r = await S.mutate({api, data:ledger(), rev:5, fn:addRec("r2")});
+    eq(r.rev, 6);
   });
   test("mutate：409 後重送拿到 200 但缺 rev → 不宣告成功", async () => {
     const api = fakeApi([{status:409, j:{data:ledger(), rev:7}}, {status:200, j:{}}]);
@@ -136,7 +207,7 @@
     eq(S.checkPull({data:null, rev:0}, {allowEmpty:true}).empty, true);
     let e = null; try{ S.checkPull({data:null, rev:4}); }catch(x){ e = x; } assert(e && e.code === "bad_response");
   });
-  const badRevs = {"沒有 rev": undefined, "null": null, "物件": {}, "陣列": [], "布林值": false, "空字串": "", "NaN": NaN};
+  const badRevs = {"沒有 rev": undefined, "null": null, "物件": {}, "陣列": [], "布林值": false, "空字串": "", "NaN": NaN, "字串數字": "3", "負數": -1, "小數": 1.5, "超過安全整數": 2 ** 60};
   Object.entries(badRevs).forEach(([label, rev]) => {
     test("checkPull：rev 無效（" + label + "）→ 拒絕，包括全新帳號的空資料", () => {
       [{data:ledger(), rev, opt:{}}, {data:ledger(), rev, opt:{allowEmpty:true}}, {data:null, rev, opt:{allowEmpty:true}}].forEach(c => {
@@ -146,9 +217,12 @@
       });
     });
   });
-  test("checkPull：全新帳號 rev 是 0 或字串都接受", () => {
+  test("checkPull：全新帳號 rev = 0、空資料 → 接受（後端 GET 的預設值）", () => {
     eq(S.checkPull({data:null, rev:0}, {allowEmpty:true}).rev, 0);
-    eq(S.checkPull({data:null, rev:"r0"}, {allowEmpty:true}).rev, "r0");
+  });
+  test("isRev：符合後端合約（≥ 0 的安全整數）", () => {
+    [0, 1, 42, Number.MAX_SAFE_INTEGER].forEach(v => assert(S.isRev(v), "應接受 " + v));
+    [-1, 1.5, "1", "", null, undefined, NaN, Infinity, {}, [], true, 2 ** 60].forEach(v => assert(!S.isRev(v), "應拒絕 " + String(v)));
   });
   test("checkPull：格式錯的帳本、缺 rev、空回應都拒絕", () => {
     [{data:{}, rev:1}, {data:{records:[], cards:{}}, rev:1}, {data:ledger()}, null, "x"].forEach(j => {

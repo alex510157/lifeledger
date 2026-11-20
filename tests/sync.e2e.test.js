@@ -47,7 +47,11 @@
   const ready = w => waitFor(() => /已同步/.test($(w, "saveInfo").textContent), 6000, "app 同步完成");
 
   const card = (id, name) => ({id, bank:"玉山", name, cap:null, cycleDay:null, cats:[], note:""});
-  const ledger = (o) => Object.assign({version:1, budget:null, cards:[card("c1","卡一")], records:[{id:"r1", date:"2026-11-01", amount:100, cardId:"c1", cardName:"卡一", bank:"玉山", category:"餐飲", note:"", ts:1}]}, o || {});
+  // 記錄日期放在「本月 1 號」（台北時間），app 開啟時顯示本月，明細列表才看得到這些記錄
+  const DAY1 = new Date().toLocaleDateString("sv-SE", {timeZone:"Asia/Taipei"}).slice(0, 7) + "-01";
+  const ledger = (o) => Object.assign({version:1, budget:null, cards:[card("c1","卡一")], records:[{id:"r1", date:DAY1, amount:100, cardId:"c1", cardName:"卡一", bank:"玉山", category:"餐飲", note:"", ts:1}]}, o || {});
+  // 重新畫面（切到下個月再切回來），回傳明細列表的筆數：用來確認 app 記憶體中的帳本 D 沒有被換掉
+  const shownItems = w => { $(w, "nextM").click(); $(w, "prevM").click(); return w.document.querySelectorAll("#ledger .item").length; };
   const getLedger = (rev, data) => req => common(req) || (req.method === "GET" && req.path === "/api/ledger" && !req.query.page ? {status:200, body:{rev, data}} : null);
 
   async function addExpense(w, amt){ $(w, "amount").value = String(amt); $(w, "saveBtn").click(); }
@@ -161,6 +165,85 @@
     await sleep(300);
     eq(puts().length, 0);
     eq(cache().rev, 5); eq(cache().data.records.map(r => r.id), ["r1"]);
+  });
+
+  /* ---------- 409 之後重試失敗：本機資料不能被提前覆蓋 ---------- */
+  function remoteWithX(){ const d = ledger(); d.records.push({id:"rX", date:DAY1, amount:9, cardId:"c1", cardName:"卡一", bank:"玉山", category:"餐飲", note:"別台", ts:2}); return d; }
+  async function conflictThen(second){
+    resetStorage();
+    const base = getLedger(5, ledger());
+    let n = 0;
+    server(req => base(req) || (req.method === "PUT" ? (++n === 1 ? {status:409, body:{error:"conflict", rev:8, data:remoteWithX()}} : second) : null));
+    const w = await boot("index.html"); await ready(w);
+    await addExpense(w, 120);
+    await waitFor(() => !$(w, "banner").hidden, 4000, "錯誤提示");
+    await sleep(300);
+    return w;
+  }
+  test("E2E 帳本：409 收到有效資料後，第二次 PUT 回 200 但缺 rev → 本機資料、版本號、快取都沒有被提前覆蓋，輸入的金額還在", async () => {
+    const w = await conflictThen({status:200, body:{}});
+    eq(puts().length, 2);
+    eq(cache().rev, 5, "快取的版本號沒變");
+    eq(cache().data.records.map(r => r.id), ["r1"], "快取沒有被換成雲端資料");
+    eq($(w, "amount").value, "120", "還沒存成功的修改還在表單上");
+    assert(/無法確認/.test($(w, "banner").textContent));
+    eq(shownItems(w), 1, "app 記憶體中的帳本仍是原本的 1 筆，沒有被換成雲端的 2 筆");
+  });
+  test("E2E 帳本：409 收到有效資料後，第二次 PUT 回 HTTP 500 → 本機資料、版本號、快取都沒有被提前覆蓋，輸入的金額還在", async () => {
+    const w = await conflictThen({status:500, body:{error:"server error"}});
+    eq(puts().length, 2);
+    eq(cache().rev, 5); eq(cache().data.records.map(r => r.id), ["r1"]);
+    eq($(w, "amount").value, "120");
+    eq(shownItems(w), 1, "app 記憶體中的帳本仍是原本的 1 筆");
+  });
+  test("E2E 帳本：上面的失敗之後再存一次 → 用雲端最新資料重套，成功後才更新快取", async () => {
+    resetStorage();
+    const base = getLedger(5, ledger());
+    let n = 0;
+    server(req => base(req) || (req.method === "PUT" ? (++n === 1 ? {status:409, body:{rev:8, data:remoteWithX()}} : n === 2 ? {status:500, body:{}} : n === 3 ? {status:409, body:{rev:8, data:remoteWithX()}} : {status:200, body:{rev:9}}) : null));
+    const w = await boot("index.html"); await ready(w);
+    await addExpense(w, 120);
+    await waitFor(() => !$(w, "banner").hidden, 4000, "第一次失敗");
+    eq(cache().rev, 5);
+    $(w, "saveBtn").click();   // 金額還在表單上，直接再按一次
+    await waitFor(() => cache() && cache().rev === 9, 4000, "第二次成功");
+    eq(cache().data.records.map(r => r.id).slice(0, 2), ["r1", "rX"]); eq(cache().data.records.length, 3);
+    assert($(w, "banner").hidden, "成功後錯誤提示消失");
+  });
+
+  /* ---------- 本機快取的 rev 不符合 API 合約 ---------- */
+  const downServer = () => server(req => common(req) || (req.method === "GET" && req.path === "/api/ledger" ? {status:500, body:{error:"down"}} : null));
+  [["缺少 rev", {}], ["rev 是 null", {rev:null}], ["rev 是字串", {rev:"5"}], ["rev 是負數", {rev:-1}], ["rev 是小數", {rev:5.5}]].forEach(([label, extra]) => {
+    test("E2E 快取：" + label + "、又讀不到雲端 → 不採用快取、不送出 PUT", async () => {
+      const c = Object.assign({data:ledger()}, extra);
+      resetStorage({"cf-sync-cache": c});
+      downServer();
+      const w = await boot("index.html");
+      await waitFor(() => /無法連線雲端/.test($(w, "saveInfo").textContent), 6000, "讀取失敗訊息");
+      $(w, "budgetAll").value = "1000"; $(w, "budgetSave").click();
+      await waitFor(() => !$(w, "banner").hidden, 4000, "錯誤提示");
+      await sleep(200);
+      eq(puts().length, 0, "不能送出");
+      eq(JSON.stringify(cache()), JSON.stringify(c), "快取原封不動，沒有被覆蓋或刪除");
+    });
+  });
+  test("E2E 快取：rev 無效、雲端回傳空帳本 → 不建立初始帳本（這台本來有資料）", async () => {
+    resetStorage({"cf-sync-cache": {rev:"5", data:ledger()}});
+    server(getLedger(0, null));
+    const w = await boot("index.html");
+    await waitFor(() => /無法連線雲端/.test($(w, "saveInfo").textContent), 6000, "讀取失敗訊息");
+    await sleep(300);
+    eq(puts().length, 0, "不能送出初始帳本");
+  });
+  test("E2E 快取：rev 無效、但雲端正常 → 改用雲端資料，之後可以正常存檔", async () => {
+    resetStorage({"cf-sync-cache": {rev:-1, data:ledger()}});
+    const base = getLedger(6, ledger());
+    server(req => base(req) || (req.method === "PUT" ? {status:200, body:{rev:7}} : null));
+    const w = await boot("index.html"); await ready(w);
+    eq(cache().rev, 6, "快取換成雲端的有效版本");
+    await addExpense(w, 30);
+    await waitFor(() => cache().rev === 7, 4000, "存檔完成");
+    eq(puts()[0].body.base, 6);
   });
 
   /* ---------- 卡片設定：index.html ---------- */
