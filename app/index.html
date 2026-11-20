@@ -742,7 +742,13 @@ html.nfbadge #entry .actions,html.nfbadge #incEntry .incbtn{bottom:calc(70px + v
     return {status:r.status, j};
   }
   function cacheSave(){ try{ localStorage.setItem("cf-sync-cache", JSON.stringify({rev:REV,data:D})); }catch(e){} }
-  function cacheLoad(){ try{ const c=JSON.parse(localStorage.getItem("cf-sync-cache")||"null"); if(c&&c.data){ D=c.data; REV=c.rev; norm(); return true; } }catch(e){} return false; }
+  /* 本機快取：帳本格式和版本號都要符合 API 合約才採用。回傳 "ok"（已載入）、"invalid"（有快取但格式不對，不採用也不刪除）、"none"（沒有快取） */
+  function cacheLoad(){
+    let raw=null; try{ raw=localStorage.getItem("cf-sync-cache"); }catch(e){}
+    if(raw==null) return "none";
+    try{ const c=JSON.parse(raw); if(c && LLSync.isLedger(c.data) && LLSync.isRev(c.rev)){ D=c.data; REV=c.rev; norm(); return "ok"; } }catch(e){}
+    return "invalid";
+  }
   function setSync(ok, msg){
     const el=$("saveInfo"); el.textContent="";
     const d=document.createElement("span"); d.className="dotst"+(ok?"":" off"); el.appendChild(d);
@@ -759,7 +765,8 @@ html.nfbadge #entry .actions,html.nfbadge #incEntry .incbtn{bottom:calc(70px + v
   /* 修改：先套用在副本 → 送上雲端；別台裝置剛好也改過，而且雲端有回傳完整的最新資料，才拿最新的再套一次。
      409 沒有附完整資料時直接停下：不會用空帳本或預設資料送出，這台裝置的資料也不會被改動（見 sync.js） */
   async function mutate(fn){
-    const r = await LLSync.mutate({api, data:LOADED?D:null, rev:REV, fn, onAdopt:c=>{ D=c.data; REV=c.rev; norm(); }});
+    // 409 重試期間的雲端資料只留在 LLSync.mutate 內部；只有整個流程成功才更新 D、REV 和快取
+    const r = await LLSync.mutate({api, data:LOADED?D:null, rev:REV, fn});
     D=r.data; REV=r.rev; norm(); cacheSave(); setSync(true); banner("");
   }
   async function act(fn, okMsg){
@@ -2082,11 +2089,13 @@ html.nfbadge #entry .actions,html.nfbadge #incEntry .incbtn{bottom:calc(70px + v
   function askPw(msg){ document.querySelector(".mon").hidden=true; $("gate").hidden=false; $("main").hidden=true; $("pwErr").textContent=msg||""; $("pw").focus(); }
   async function start(){
     document.querySelector(".mon").hidden=false; $("gate").hidden=true; $("main").hidden=false;
-    const had = cacheLoad(); LOADED = had; if(had){ renderAll(); setSync(false,"顯示上次的資料，正在同步…"); } else { D = {cards:[],records:[],budget:null}; renderAll(); setSync(false,"正在讀取雲端記錄…"); }
+    const cs = cacheLoad(), had = cs === "ok"; LOADED = had;
+    if(had){ renderAll(); setSync(false,"顯示上次的資料，正在同步…"); }
+    else { D = {cards:[],records:[],budget:null}; renderAll(); setSync(false, cs==="invalid" ? "本機快取的格式不對，不使用它，正在讀取雲端記錄…" : "正在讀取雲端記錄…"); }
     busy(!had);
     try{
-      // 這台裝置已有帳本時，雲端回傳空資料是異常：不建立初始帳本、不覆蓋
-      await Promise.all([pull({allowEmpty:!had}), loadCatalog()]);
+      // 這台裝置已有帳本（包括格式不對的快取）時，雲端回傳空資料是異常：不建立初始帳本、不覆蓋
+      await Promise.all([pull({allowEmpty:cs==="none"}), loadCatalog()]);
       if(!D){ D = seed(); norm(); LOADED = true; await mutate(()=>{}); }
       norm(); LOADED = true; cacheSave(); renderAll(); setSync(true);
     }catch(e){

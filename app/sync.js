@@ -25,7 +25,12 @@
     for(const k of OPTIONAL_ARRAYS) if(d[k] != null && !Array.isArray(d[k])) return false;
     return true;
   }
-  const isRev = r => (typeof r === "number" && isFinite(r)) || (typeof r === "string" && r.length > 0);
+  /* 版本號（rev）的 API 合約，依後端 netlify/functions/ledger.mjs：
+   *  - GET  回 {rev: cur ? cur.rev : 0, data}：新帳號 rev = 0、data = null
+   *  - PUT 成功時存 rev: curRev + 1 並回 {rev}；比對方式是 Number(b.base) !== curRev
+   *  - 409 回 {error, rev: curRev, data: cur ? cur.data : null}
+   * 所以 rev 一定是 ≥ 0 的整數（伺服器不會產生字串或小數） */
+  const isRev = r => Number.isSafeInteger(r) && r >= 0;
 
   const clone = x => JSON.parse(JSON.stringify(x));
 
@@ -50,18 +55,22 @@
 
   const UNSAFE_MSG = "雲端資料在別台裝置改過，但伺服器沒有回傳完整的最新資料，這次沒有存到。這台裝置的資料沒有被改動，請按「立即同步」後再試一次。";
   const RETRY_MSG = "另一台裝置也在存檔，這次沒有存到，請再按一次";
-  const UNCONFIRMED_MSG = "伺服器的回應不完整（缺少版本號），無法確認這次有沒有存到。這台裝置的資料沒有被改動，請按「立即同步」確認雲端的內容後再試。";
+  const UNCONFIRMED_MSG = "伺服器的回應不完整（版本號缺少或不正確），無法確認這次有沒有存到。這台裝置的資料沒有被改動，請按「立即同步」確認雲端的內容後再試。";
+
+  const BAD_LOCAL_REV_MSG = "這台裝置記錄的雲端版本號不正確，這次沒有存到，資料也沒有被改動。請按「立即同步」重新讀取雲端後再試。";
 
   /* 修改流程
    * opt.api(method, body) → Promise<{status, j}>
    * opt.data / opt.rev：目前的帳本與版本（不會被修改）
    * opt.fn(draft)：把修改套到副本上；丟出錯誤就不送出
-   * opt.onAdopt({data, rev})：409 收到可信的最新資料時通知呼叫端（可用來更新畫面上的資料）
-   * 成功回傳 {data, rev}；失敗丟出錯誤，且不會用任何預設資料送出
+   * 成功回傳 {data, rev}；失敗丟出錯誤，且不會用任何預設資料送出。
+   * 409 收到的最新雲端資料只留在這個函式內部，重試期間不會通知呼叫端；
+   * 只有整個流程成功時，呼叫端才拿到結果並更新本機資料、版本號與快取。失敗時呼叫端的資料完全不變。
    */
   async function mutate(opt){
     const tries = opt.tries || 3;
     if(!isLedger(opt.data)) throw SyncError("no_local_data", "這台裝置還沒讀到完整的帳本，這次沒有存到，請先按「立即同步」");
+    if(!isRev(opt.rev)) throw SyncError("bad_local_rev", BAD_LOCAL_REV_MSG);
     let cur = {data:opt.data, rev:opt.rev};
     for(let k=0; k<tries; k++){
       const draft = clone(cur.data);
@@ -69,14 +78,14 @@
       if(!isLedger(draft)) throw SyncError("bad_draft", "這次的修改會讓帳本格式不完整，所以沒有送出");
       const {status, j} = await opt.api("PUT", {base:cur.rev, data:draft});
       if(status === 200){
-        // 200 也必須帶有效的 rev：沒有的話無法確認伺服器存了哪一版，不宣告成功、不更新本機資料與版本號
-        if(!isObj(j) || !isRev(j.rev)) throw SyncError("bad_response", UNCONFIRMED_MSG);
+        // 200 也必須帶有效的 rev，而且要比送出的 base 新（後端是 base + 1）：
+        // 不符合就無法確認伺服器存了哪一版，不宣告成功、不更新本機資料與版本號
+        if(!isObj(j) || !isRev(j.rev) || j.rev <= cur.rev) throw SyncError("bad_response", UNCONFIRMED_MSG);
         return {data:draft, rev:j.rev};
       }
       if(status === 409){
         if(!usableConflict(j, cur.rev)) throw SyncError("conflict_unsafe", UNSAFE_MSG);
-        cur = {data:j.data, rev:j.rev};
-        if(opt.onAdopt) opt.onAdopt(cur);
+        cur = {data:j.data, rev:j.rev};   // 只在內部使用，成功前不改動呼叫端的資料
         continue;
       }
       if(status === 401) throw {auth:true, msg:j && j.error};
