@@ -29,15 +29,17 @@
 
   const clone = x => JSON.parse(JSON.stringify(x));
 
-  /* GET /api/ledger 的回應。allowEmpty：沒有本機資料的全新帳號，data 可以是 null（之後會建立初始帳本） */
+  /* GET /api/ledger 的回應。所有情況都必須有有效的 rev（包括全新帳號的空資料）。
+     allowEmpty：沒有本機資料的全新帳號，data 可以是 null（之後會建立初始帳本） */
   function checkPull(j, opt){
     opt = opt || {};
     if(!isObj(j)) throw SyncError("bad_response", "雲端回應格式不對，這台裝置的資料沒有被改動");
+    if(!isRev(j.rev)) throw SyncError("bad_response", "雲端回應缺少有效的版本號，這台裝置的資料沒有被改動，請稍後再按「立即同步」");
     if(j.data == null){
       if(opt.allowEmpty) return {data:null, rev:j.rev, empty:true};
       throw SyncError("bad_response", "雲端沒有回傳帳本資料，這台裝置的資料沒有被改動，請稍後再按「立即同步」");
     }
-    if(!isLedger(j.data) || !isRev(j.rev)) throw SyncError("bad_response", "雲端回傳的帳本格式不對，這台裝置的資料沒有被改動");
+    if(!isLedger(j.data)) throw SyncError("bad_response", "雲端回傳的帳本格式不對，這台裝置的資料沒有被改動");
     return {data:j.data, rev:j.rev, empty:false};
   }
 
@@ -48,6 +50,7 @@
 
   const UNSAFE_MSG = "雲端資料在別台裝置改過，但伺服器沒有回傳完整的最新資料，這次沒有存到。這台裝置的資料沒有被改動，請按「立即同步」後再試一次。";
   const RETRY_MSG = "另一台裝置也在存檔，這次沒有存到，請再按一次";
+  const UNCONFIRMED_MSG = "伺服器的回應不完整（缺少版本號），無法確認這次有沒有存到。這台裝置的資料沒有被改動，請按「立即同步」確認雲端的內容後再試。";
 
   /* 修改流程
    * opt.api(method, body) → Promise<{status, j}>
@@ -65,7 +68,11 @@
       opt.fn(draft);
       if(!isLedger(draft)) throw SyncError("bad_draft", "這次的修改會讓帳本格式不完整，所以沒有送出");
       const {status, j} = await opt.api("PUT", {base:cur.rev, data:draft});
-      if(status === 200) return {data:draft, rev:(j && j.rev)};
+      if(status === 200){
+        // 200 也必須帶有效的 rev：沒有的話無法確認伺服器存了哪一版，不宣告成功、不更新本機資料與版本號
+        if(!isObj(j) || !isRev(j.rev)) throw SyncError("bad_response", UNCONFIRMED_MSG);
+        return {data:draft, rev:j.rev};
+      }
       if(status === 409){
         if(!usableConflict(j, cur.rev)) throw SyncError("conflict_unsafe", UNSAFE_MSG);
         cur = {data:j.data, rev:j.rev};
