@@ -71,9 +71,15 @@ function llBar(){
     if(rf.classList.contains('busy')){say('已經請電腦更新了，通常 10～15 分鐘內完成（電腦要開著、沒睡著）。好了這個按鈕會變綠色。');return}
     rf.textContent='⟳ 送出中…';
     try{
-      for(var k=0;k<3;k++){var j=await get(),d=j.data||{};REQ=Date.now();d.refreshReq=REQ;
+      /* 只在拿到完整帳本時才送出（只加 refreshReq 欄位）；拿不到就停下，絕不用空資料覆蓋帳本 */
+      var sent=false,okRev=function(v){return Number.isSafeInteger(v)&&v>=0};   /* 版本號合約：≥ 0 的整數（見後端 ledger.mjs） */
+      for(var k=0;k<3;k++){var j=await get(),d=j&&j.data;
+        if(!d||typeof d!=='object'||Array.isArray(d)||!Array.isArray(d.records)||!Array.isArray(d.cards)||!okRev(j.rev))throw new Error('雲端沒有回傳完整的帳本，所以沒有送出（你的資料沒有被改動）');
+        REQ=Date.now();d.refreshReq=REQ;
         var r=await fetch(API+'/api/ledger',{method:'PUT',headers:H(),cache:'no-store',body:JSON.stringify({base:j.rev,data:d})});
-        if(r.ok)break;if(r.status!==409)throw new Error('存不進去（'+r.status+'）')}
+        /* 200 也要帶有效的 rev，才能確認真的存進去；否則不宣告成功 */
+        if(r.ok){var pj=null;try{pj=await r.json()}catch(x){}if(!pj||!okRev(pj.rev)||pj.rev<=j.rev)throw new Error('伺服器回應不完整，無法確認有沒有送出，請稍後再按一次');sent=true;break}if(r.status!==409)throw new Error('存不進去（'+r.status+'）')}
+      if(!sent)throw new Error('另一台裝置也在存檔，請再按一次');
       waiting();say('已請電腦更新：通常 <b>10～15 分鐘</b>內完成（電腦要開著、沒睡著）。好了這個按鈕會變綠色，按一下重新載入。');
     }catch(e){rf.textContent='⟳ 更新';say('沒送出：'+(e.message||'網路有問題'))}
   };

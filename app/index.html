@@ -717,6 +717,7 @@ html.nfbadge #entry .actions,html.nfbadge #incEntry .incbtn{bottom:calc(70px + v
   </div>
 </div>
 
+<script src="sync.js"></script>
 <script>
 (function(){
   "use strict";
@@ -731,6 +732,7 @@ html.nfbadge #entry .actions,html.nfbadge #incEntry .incbtn{bottom:calc(70px + v
 
   /* ====== 雲端儲存 ====== */
   let D = null, REV = 0, PW = null, USER = null, syncing = false, lastSync = 0, regMode = false;
+  let LOADED = false;   // 只有真的從雲端或本機快取讀到帳本後才允許存檔（畫面上的空白暫存資料不能拿去覆蓋雲端）
   try{ PW = localStorage.getItem("cf-pw"); USER = localStorage.getItem("cf-user"); }catch(e){}
   function seed(){ return {version:1, budget:null, cards:[{id:uid(),bank:"其他",name:"現金／其他",cap:null,cycleDay:null,cats:[],note:""}], records:[]}; }
   function norm(){ D.records = D.records||[]; D.cards = D.cards||[]; D.trips = D.trips||[]; D.incomes = D.incomes||[]; }
@@ -740,34 +742,39 @@ html.nfbadge #entry .actions,html.nfbadge #incEntry .incbtn{bottom:calc(70px + v
     return {status:r.status, j};
   }
   function cacheSave(){ try{ localStorage.setItem("cf-sync-cache", JSON.stringify({rev:REV,data:D})); }catch(e){} }
-  function cacheLoad(){ try{ const c=JSON.parse(localStorage.getItem("cf-sync-cache")||"null"); if(c&&c.data){ D=c.data; REV=c.rev; norm(); return true; } }catch(e){} return false; }
+  /* 本機快取：帳本格式和版本號都要符合 API 合約才採用。回傳 "ok"（已載入）、"invalid"（有快取但格式不對，不採用也不刪除）、"none"（沒有快取） */
+  function cacheLoad(){
+    let raw=null; try{ raw=localStorage.getItem("cf-sync-cache"); }catch(e){}
+    if(raw==null) return "none";
+    try{ const c=JSON.parse(raw); if(c && LLSync.isLedger(c.data) && LLSync.isRev(c.rev)){ D=c.data; REV=c.rev; norm(); return "ok"; } }catch(e){}
+    return "invalid";
+  }
   function setSync(ok, msg){
     const el=$("saveInfo"); el.textContent="";
     const d=document.createElement("span"); d.className="dotst"+(ok?"":" off"); el.appendChild(d);
     el.appendChild(document.createTextNode((USER?USER+"・":"")+(msg || ("已同步 "+new Date().toLocaleTimeString("zh-TW",{hour:"2-digit",minute:"2-digit"})+"・共 "+D.records.length+" 筆"))));
   }
-  async function pull(){
+  /* 讀取：回應格式不完整就丟出錯誤、保留目前資料（allowEmpty：沒有本機資料的全新帳號才可以是空的） */
+  async function pull(opt){
     const {status,j} = await api("GET");
     if(status===401||status===429) throw {auth:true, msg:j.error};
     if(status!==200) throw new Error(j.error||"讀取失敗（"+status+"）");
-    REV = j.rev; D = j.data; lastSync = Date.now();
+    const p = LLSync.checkPull(j, opt);
+    REV = p.rev; D = p.data; lastSync = Date.now();
   }
-  /* 修改：先套用在副本 → 送上雲端；別台裝置剛好也改過就拿最新的再套一次 */
+  /* 修改：先套用在副本 → 送上雲端；別台裝置剛好也改過，而且雲端有回傳完整的最新資料，才拿最新的再套一次。
+     409 沒有附完整資料時直接停下：不會用空帳本或預設資料送出，這台裝置的資料也不會被改動（見 sync.js） */
   async function mutate(fn){
-    for(let k=0;k<3;k++){
-      const draft = JSON.parse(JSON.stringify(D)); fn(draft);
-      const {status,j} = await api("PUT", {base:REV, data:draft});
-      if(status===200){ D=draft; REV=j.rev; norm(); cacheSave(); setSync(true); return; }
-      if(status===409){ D=j.data||seed(); REV=j.rev; norm(); continue; }
-      if(status===401) throw {auth:true};
-      throw new Error(j.error||"儲存失敗（"+status+"）");
-    }
-    throw new Error("另一台裝置也在存檔，請再按一次");
+    // 409 重試期間的雲端資料只留在 LLSync.mutate 內部；只有整個流程成功才更新 D、REV 和快取
+    const r = await LLSync.mutate({api, data:LOADED?D:null, rev:REV, fn});
+    D=r.data; REV=r.rev; norm(); cacheSave(); setSync(true); banner("");
   }
   async function act(fn, okMsg){
     busy(true);
     try{ await mutate(fn); renderAll(); if(okMsg) toast(okMsg); return true; }
-    catch(e){ if(e&&e.auth){ askPw("密碼已變更，請重新輸入。"); } else { toast("沒有存到："+((e&&e.message)||"網路有問題，請稍後再試"), true); setSync(false,"未同步：網路有問題"); } return false; }
+    catch(e){ if(e&&e.auth){ askPw("密碼已變更，請重新輸入。"); }
+      else if(e&&e.code){ toast(e.message, true); banner("⚠ "+e.message); setSync(false,"未同步：這次修改沒有存到"); }
+      else { toast("沒有存到："+((e&&e.message)||"網路有問題，請稍後再試"), true); setSync(false,"未同步：網路有問題"); } return false; }
     finally{ busy(false); }
   }
   function busy(on){ $("app").classList.toggle("loading", !!on); }
@@ -987,8 +994,11 @@ html.nfbadge #entry .actions,html.nfbadge #incEntry .incbtn{bottom:calc(70px + v
       window.addEventListener("pointermove",move,{passive:false}); window.addEventListener("pointerup",end); window.addEventListener("pointercancel",end);
       timer=setTimeout(()=>{ drag=true; grp=d.dataset.parent?[d]:[d,...kids()]; d.classList.add("dragging"); grp.slice(1).forEach(g=>g.classList.add("dragkid")); document.body.classList.add("nosel"); if(navigator.vibrate) navigator.vibrate(12); }, e.pointerType==="mouse"?0:250); });
   }
+  // 打開卡片編輯時的雲端卡片快照：儲存時用來判斷哪些卡是這台裝置改的（見 sync.js mergeCards）
+  let CARD_BASE = null;
   function renderCardEdit(list, openId){
     const box=$("cardEdit");
+    const fromCloud = !list;
     list = list || D.cards;
     { const ids=new Set(list.map(c=>c.id)), out=[];   // 額度池排在自己的主卡正下方（以前分開拖過的也自動歸位）
       list.forEach(c=>{ if(c.parentId && ids.has(c.parentId)) return; out.push(c); list.forEach(k=>{ if(k.parentId===c.id) out.push(k); }); });
@@ -1055,6 +1065,8 @@ html.nfbadge #entry .actions,html.nfbadge #incEntry .incbtn{bottom:calc(70px + v
       w.appendChild(fold);
       d.appendChild(w); box.appendChild(d);
     });
+    if(fromCloud){ const form=readCardEdit(); form.forEach(c=>{ if(c.parentId && !form.some(k=>k.id===c.parentId)) delete c.parentId; });
+      CARD_BASE = {raw:JSON.parse(JSON.stringify(D.cards||[])), form}; }
   }
   function renderInc(){
     const box=$("incList"); if(!box) return; box.textContent="";
@@ -2033,7 +2045,16 @@ html.nfbadge #entry .actions,html.nfbadge #incEntry .incbtn{bottom:calc(70px + v
   $("cardsSave").addEventListener("click",async()=>{
     const next=readCardEdit();
     next.forEach(c=>{ if(c.parentId && !next.some(k=>k.id===c.parentId)) delete c.parentId; });
-    const ok = await act(d=>{ d.cards=next; d.records.forEach(r=>{ const c=next.find(k=>k.id===r.cardId); if(c){ r.cardName=c.name; r.bank=c.bank; } }); }, "卡片設定已儲存，所有裝置都會更新");
+    const base=CARD_BASE;
+    if(!base){ const m="卡片頁還沒讀到雲端的卡片，這次沒有存到。請切到別頁再回到「卡片」後重試。"; toast(m,true); banner("⚠ "+m); return; }
+    // 只寫入這台裝置改過的卡；別台裝置新增或修改的卡保留。兩邊改到同一張卡就停下，不覆蓋
+    const ok = await act(d=>{
+      const m=LLSync.mergeCards({baseRaw:base.raw, baseForm:base.form, local:next, remote:d.cards});
+      if(!m.ok){ const nm=m.conflicts.map(id=>{ const c=next.find(k=>k.id===id)||d.cards.find(k=>k.id===id); return c?c.name:id; }).join("、");
+        throw LLSync.SyncError("cards_conflict", "別台裝置也改了「"+nm+"」，這次卡片設定沒有存到，雲端和這台裝置的資料都沒有被改動。你的修改還在畫面上：請先記下要改的地方，切到別頁再回到「卡片」重新打開後再改一次。"); }
+      d.cards=m.cards;
+      d.records.forEach(r=>{ if(m.changedIds.indexOf(r.cardId)<0) return; const c=m.cards.find(k=>k.id===r.cardId); if(c){ r.cardName=c.name; r.bank=c.bank; } });
+    }, "卡片設定已儲存，所有裝置都會更新");
     if(ok){ renderCardEdit(); $("picker").hidden=true; $("cardsSave").classList.remove("dirty"); }
   });
   $("expJson").addEventListener("click",()=>{ saveFile("LifeLedger_backup_"+TODAY+".json", JSON.stringify(D,null,1), "application/json"); toast("已匯出備份，請存到 OneDrive。"); });
@@ -2068,22 +2089,25 @@ html.nfbadge #entry .actions,html.nfbadge #incEntry .incbtn{bottom:calc(70px + v
   function askPw(msg){ document.querySelector(".mon").hidden=true; $("gate").hidden=false; $("main").hidden=true; $("pwErr").textContent=msg||""; $("pw").focus(); }
   async function start(){
     document.querySelector(".mon").hidden=false; $("gate").hidden=true; $("main").hidden=false;
-    const had = cacheLoad(); if(had){ renderAll(); setSync(false,"顯示上次的資料，正在同步…"); } else { D = {cards:[],records:[],budget:null}; renderAll(); setSync(false,"正在讀取雲端記錄…"); }
+    const cs = cacheLoad(), had = cs === "ok"; LOADED = had;
+    if(had){ renderAll(); setSync(false,"顯示上次的資料，正在同步…"); }
+    else { D = {cards:[],records:[],budget:null}; renderAll(); setSync(false, cs==="invalid" ? "本機快取的格式不對，不使用它，正在讀取雲端記錄…" : "正在讀取雲端記錄…"); }
     busy(!had);
     try{
-      await Promise.all([pull(), loadCatalog()]);
-      if(!D){ D = seed(); norm(); await mutate(()=>{}); }
-      norm(); cacheSave(); renderAll(); setSync(true);
+      // 這台裝置已有帳本（包括格式不對的快取）時，雲端回傳空資料是異常：不建立初始帳本、不覆蓋
+      await Promise.all([pull({allowEmpty:cs==="none"}), loadCatalog()]);
+      if(!D){ D = seed(); norm(); LOADED = true; await mutate(()=>{}); }
+      norm(); LOADED = true; cacheSave(); renderAll(); setSync(true);
     }catch(e){
       if(e&&e.auth){ PW=null; try{localStorage.removeItem("cf-pw");}catch(_){} askPw(e.msg||"帳號或密碼不對，請再試一次。"); }
-      else setSync(false, "無法連線雲端："+((e&&e.message)||"請檢查網路"));
+      else { setSync(false, "無法連線雲端："+((e&&e.message)||"請檢查網路")); if(e&&e.code) banner("⚠ "+e.message); }
     }finally{ busy(false); }
   }
   async function refresh(){
     if(syncing || !PW || $("main").hidden || document.hidden) return;
     syncing=true;
-    try{ const before=REV; await pull(); norm(); cacheSave(); if(REV!==before) renderAll(); setSync(true); }
-    catch(e){ if(e&&e.auth) askPw("密碼已變更，請重新輸入。"); else setSync(false,"未同步：網路有問題"); }
+    try{ const before=REV; await pull(); norm(); LOADED = true; cacheSave(); if(REV!==before) renderAll(); setSync(true); }
+    catch(e){ if(e&&e.auth) askPw("密碼已變更，請重新輸入。"); else setSync(false, e&&e.code ? "未同步："+e.message : "未同步：網路有問題"); }
     finally{ syncing=false; }
   }
   function setMode(reg){ regMode=reg; $("tLogin").setAttribute("aria-selected",String(!reg)); $("tReg").setAttribute("aria-selected",String(reg));
