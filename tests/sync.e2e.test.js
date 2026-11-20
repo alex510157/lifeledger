@@ -106,6 +106,25 @@
     const w = await boot("index.html"); await ready(w);
     eq(puts().length, 1);
     eq(puts()[0].body.data.cards.map(c => c.name), ["現金／其他"]);
+    eq(puts()[0].body.base, 0, "初始帳本以 rev 0 為 base 送出");
+    eq(cache().rev, 1, "成功後本機快取更新為伺服器回傳的 rev");
+  });
+
+  [1, 5].forEach(rev => {
+    test("E2E 讀取：沒有本機快取、GET 回 data:null 但 rev = " + rev + " → 不建立初始帳本、不送出 PUT", async () => {
+      resetStorage();
+      server(req => getLedger(rev, null)(req) || (req.method === "PUT" ? {status:200, body:{rev:rev + 1}} : null));
+      const w = await boot("index.html");
+      await waitFor(() => /無法連線雲端/.test($(w, "saveInfo").textContent), 6000, "讀取失敗訊息");
+      await sleep(300);
+      eq(puts().length, 0, "不能送出初始帳本");
+      assert(!/已同步/.test($(w, "saveInfo").textContent), "不能顯示已同步");
+      eq(cache(), null, "不能把預設帳本寫進本機快取");
+      // 使用者想存檔也會被擋下（還沒讀到完整帳本）
+      $(w, "budgetAll").value = "1000"; $(w, "budgetSave").click();
+      await waitFor(() => !$(w, "banner").hidden, 4000, "錯誤提示");
+      eq(puts().length, 0, "存檔也不能送出");
+    });
   });
 
   test("E2E 帳本：一開始讀不到雲端、本機也沒資料 → 不允許存檔", async () => {

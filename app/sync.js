@@ -35,13 +35,14 @@
   const clone = x => JSON.parse(JSON.stringify(x));
 
   /* GET /api/ledger 的回應。所有情況都必須有有效的 rev（包括全新帳號的空資料）。
-     allowEmpty：沒有本機資料的全新帳號，data 可以是 null（之後會建立初始帳本） */
+     allowEmpty：沒有本機資料時，只有 rev === 0 的 data:null 才算全新帳號（之後會建立初始帳本） */
   function checkPull(j, opt){
     opt = opt || {};
     if(!isObj(j)) throw SyncError("bad_response", "雲端回應格式不對，這台裝置的資料沒有被改動");
     if(!isRev(j.rev)) throw SyncError("bad_response", "雲端回應缺少有效的版本號，這台裝置的資料沒有被改動，請稍後再按「立即同步」");
     if(j.data == null){
-      if(opt.allowEmpty) return {data:null, rev:j.rev, empty:true};
+      // 後端只有「還沒有帳本」時才回 data:null，而且那時 rev 一定是 0；rev > 0 卻沒有資料是異常，不能當成新帳號建立初始帳本
+      if(opt.allowEmpty === true && j.rev === 0) return {data:null, rev:0, empty:true};
       throw SyncError("bad_response", "雲端沒有回傳帳本資料，這台裝置的資料沒有被改動，請稍後再按「立即同步」");
     }
     if(!isLedger(j.data)) throw SyncError("bad_response", "雲端回傳的帳本格式不對，這台裝置的資料沒有被改動");

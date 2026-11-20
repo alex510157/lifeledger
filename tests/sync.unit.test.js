@@ -224,6 +224,23 @@
     [0, 1, 42, Number.MAX_SAFE_INTEGER].forEach(v => assert(S.isRev(v), "應接受 " + v));
     [-1, 1.5, "1", "", null, undefined, NaN, Infinity, {}, [], true, 2 ** 60].forEach(v => assert(!S.isRev(v), "應拒絕 " + String(v)));
   });
+  // 後端只有「還沒有帳本」時才回 data:null，那時 rev 一定是 0
+  [1, 5, 100].forEach(rev => {
+    test("checkPull：allowEmpty 但 data:null、rev = " + rev + "（非 0）→ 拒絕，不能當成全新帳號", () => {
+      let e = null; try{ S.checkPull({data:null, rev}, {allowEmpty:true}); }catch(x){ e = x; }
+      assert(e && e.code === "bad_response", "rev 非 0 的空資料必須拒絕");
+    });
+  });
+  test("checkPull：allowEmpty 不是 true（例如字串 \"yes\"、1）時，data:null、rev = 0 也拒絕", () => {
+    ["yes", 1, {}].forEach(v => {
+      let e = null; try{ S.checkPull({data:null, rev:0}, {allowEmpty:v}); }catch(x){ e = x; }
+      assert(e && e.code === "bad_response", "allowEmpty 必須是 true，實際：" + JSON.stringify(v));
+    });
+  });
+  test("checkPull：allowEmpty 為 true、data:null、rev = 0 → 接受（正常新帳號）", () => {
+    const p = S.checkPull({data:null, rev:0}, {allowEmpty:true});
+    eq(p.empty, true); eq(p.rev, 0); eq(p.data, null);
+  });
   test("checkPull：格式錯的帳本、缺 rev、空回應都拒絕", () => {
     [{data:{}, rev:1}, {data:{records:[], cards:{}}, rev:1}, {data:ledger()}, null, "x"].forEach(j => {
       let e = null; try{ S.checkPull(j, {allowEmpty:true}); }catch(x){ e = x; }
