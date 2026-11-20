@@ -380,6 +380,35 @@
     assert(!rf(w).classList.contains("busy"), "不能顯示成更新中");
   });
 
+  // 月報／帳本頁的 rev 規則要和 app/sync.js 完全相同：≥ 0 的安全整數；PUT 成功的 rev 要大於送出的 base
+  [["字串", "3"], ["字串數字 0", "0"], ["負數", -1], ["小數", 3.5], ["null", null]].forEach(([label, rev]) => {
+    test("E2E 月報更新鍵：GET 的 rev 是" + label + " → 不送出 PUT", async () => {
+      const w = await bootReport(() => ({status:200, body:{rev, data:ledger()}}), () => ({status:200, body:{rev:4}}));
+      rf(w).click();
+      await waitFor(() => /沒送出/.test(msg(w)), 4000, "錯誤訊息");
+      eq(puts().length, 0, "不能送出");
+      assert(!rf(w).classList.contains("busy"));
+    });
+  });
+  [["字串", "4"], ["和 base 相同", 3], ["比 base 小", 2], ["負數", -1], ["小數", 3.5]].forEach(([label, rev]) => {
+    test("E2E 月報更新鍵：PUT 成功但回傳的 rev 是" + label + " → 不宣告「已請電腦更新」", async () => {
+      const w = await bootReport(() => ({status:200, body:{rev:3, data:ledger()}}), () => ({status:200, body:{rev}}));
+      rf(w).click();
+      await waitFor(() => /沒送出/.test(msg(w)), 4000, "錯誤訊息");
+      assert(/無法確認/.test(msg(w)), "要說明無法確認");
+      assert(!/已請電腦更新/.test(msg(w)), "不能宣告成功");
+      eq(puts().length, 1, "不重送");
+      assert(!rf(w).classList.contains("busy"), "不能顯示成更新中");
+    });
+  });
+  test("E2E 月報更新鍵：GET rev = 0（全新帳號）、PUT 回 1 → 正常送出", async () => {
+    const w = await bootReport(() => ({status:200, body:{rev:0, data:ledger()}}), () => ({status:200, body:{rev:1}}));
+    rf(w).click();
+    await waitFor(() => rf(w).classList.contains("busy"), 4000, "更新中");
+    eq(puts().length, 1); eq(puts()[0].body.base, 0);
+    assert(/已請電腦更新/.test(msg(w)));
+  });
+
   test("E2E 月報更新鍵：正常送出 → 帳本完整、只多 refreshReq", async () => {
     const w = await bootReport(() => ({status:200, body:{rev:3, data:ledger()}}), () => ({status:200, body:{rev:4}}));
     rf(w).click();
@@ -387,6 +416,7 @@
     eq(puts().length, 1);
     const d = puts()[0].body.data;
     eq(d.records.map(r => r.id), ["r1"]); assert(d.refreshReq > 0); eq(puts()[0].body.base, 3);
+    assert(/已請電腦更新/.test(msg(w)), "正常流程要顯示已送出");
   });
 
   window.__e2eCleanup = () => { if(frame) frame.remove(); Object.keys(localStorage).filter(k => /^(cf-|ll-)/.test(k)).forEach(k => localStorage.removeItem(k)); };
