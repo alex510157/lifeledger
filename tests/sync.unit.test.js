@@ -98,11 +98,57 @@
     eq(a1.calls.length + a2.calls.length, 2);
   });
 
+  /* ---------- mutate：HTTP 200 必須帶有效 rev ---------- */
+  const bad200 = {
+    "沒有 rev": {},
+    "rev 是 null": {rev:null},
+    "rev 是物件": {rev:{v:6}},
+    "rev 是陣列": {rev:[6]},
+    "rev 是布林值": {rev:true},
+    "rev 是空字串": {rev:""},
+    "rev 是 NaN": {rev:NaN},
+    "rev 是 Infinity": {rev:Infinity},
+    "整個回應是 null": null,
+  };
+  Object.entries(bad200).forEach(([label, j]) => {
+    test("mutate：200 但 rev 無效（" + label + "）→ 不宣告成功、不回傳新版本、目前資料不被改動", async () => {
+      const local = ledger(); const before = JSON.stringify(local);
+      const api = fakeApi([{status:200, j}]);
+      await rejects(S.mutate({api, data:local, rev:5, fn:addRec("r2")}), e => { eq(e.code, "bad_response"); assert(/無法確認/.test(e.message), "訊息要說明無法確認有沒有存到"); });
+      eq(api.calls.length, 1, "不能重送");
+      eq(JSON.stringify(local), before, "目前資料不能被改動");
+    });
+  });
+  test("mutate：200 的 rev 是字串（非空）也接受", async () => {
+    const api = fakeApi([{status:200, j:{rev:"abc123"}}]);
+    const r = await S.mutate({api, data:ledger(), rev:"abc122", fn:addRec("r2")});
+    eq(r.rev, "abc123");
+  });
+  test("mutate：409 後重送拿到 200 但缺 rev → 不宣告成功", async () => {
+    const api = fakeApi([{status:409, j:{data:ledger(), rev:7}}, {status:200, j:{}}]);
+    await rejects(S.mutate({api, data:ledger(), rev:5, fn:addRec("r2")}), e => eq(e.code, "bad_response"));
+    eq(api.calls.length, 2);
+  });
+
   /* ---------- checkPull ---------- */
   test("checkPull：完整帳本通過", () => { const p = S.checkPull({data:ledger(), rev:3}); eq(p.rev, 3); eq(p.empty, false); });
   test("checkPull：data 為 null，只有 allowEmpty（全新帳號）才接受", () => {
     eq(S.checkPull({data:null, rev:0}, {allowEmpty:true}).empty, true);
     let e = null; try{ S.checkPull({data:null, rev:4}); }catch(x){ e = x; } assert(e && e.code === "bad_response");
+  });
+  const badRevs = {"沒有 rev": undefined, "null": null, "物件": {}, "陣列": [], "布林值": false, "空字串": "", "NaN": NaN};
+  Object.entries(badRevs).forEach(([label, rev]) => {
+    test("checkPull：rev 無效（" + label + "）→ 拒絕，包括全新帳號的空資料", () => {
+      [{data:ledger(), rev, opt:{}}, {data:ledger(), rev, opt:{allowEmpty:true}}, {data:null, rev, opt:{allowEmpty:true}}].forEach(c => {
+        const j = {data:c.data}; if(rev !== undefined) j.rev = rev;
+        let e = null; try{ S.checkPull(j, c.opt); }catch(x){ e = x; }
+        assert(e && e.code === "bad_response", "應拒絕 data=" + (c.data ? "帳本" : "null") + " allowEmpty=" + !!c.opt.allowEmpty);
+      });
+    });
+  });
+  test("checkPull：全新帳號 rev 是 0 或字串都接受", () => {
+    eq(S.checkPull({data:null, rev:0}, {allowEmpty:true}).rev, 0);
+    eq(S.checkPull({data:null, rev:"r0"}, {allowEmpty:true}).rev, "r0");
   });
   test("checkPull：格式錯的帳本、缺 rev、空回應都拒絕", () => {
     [{data:{}, rev:1}, {data:{records:[], cards:{}}, rev:1}, {data:ledger()}, null, "x"].forEach(j => {

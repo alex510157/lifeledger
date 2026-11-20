@@ -116,6 +116,53 @@
     eq(puts().length, 0, "不能用空白暫存資料覆蓋雲端");
   });
 
+  /* ---------- 版本號（rev）驗證：index.html ---------- */
+  test("E2E 帳本：PUT 回 200 但缺 rev → 不宣告成功、本機資料和版本號不變、顯示無法確認", async () => {
+    resetStorage();
+    const base = getLedger(5, ledger());
+    server(req => base(req) || (req.method === "PUT" ? {status:200, body:{ok:true}} : null));
+    const w = await boot("index.html"); await ready(w);
+    await addExpense(w, 120);
+    await waitFor(() => !$(w, "banner").hidden, 4000, "錯誤提示");
+    await sleep(300);
+    eq(puts().length, 1, "不能重送");
+    assert(/無法確認/.test($(w, "banner").textContent), "提示要說明無法確認有沒有存到");
+    assert(!/已記下/.test($(w, "toast").textContent), "不能顯示「已記下」");
+    eq(cache().rev, 5, "本機版本號不變");
+    eq(cache().data.records.map(r => r.id), ["r1"], "本機資料不變");
+  });
+
+  test("E2E 帳本：PUT 回 200 但 rev 是 null → 不宣告成功", async () => {
+    resetStorage();
+    const base = getLedger(5, ledger());
+    server(req => base(req) || (req.method === "PUT" ? {status:200, body:{rev:null}} : null));
+    const w = await boot("index.html"); await ready(w);
+    await addExpense(w, 80);
+    await waitFor(() => !$(w, "banner").hidden, 4000, "錯誤提示");
+    eq(puts().length, 1); eq(cache().rev, 5); eq(cache().data.records.length, 1);
+  });
+
+  test("E2E 讀取：全新帳號但 GET 缺 rev → 不建立初始帳本、不送出", async () => {
+    resetStorage();
+    server(req => common(req) || (req.method === "GET" && req.path === "/api/ledger" && !req.query.page ? {status:200, body:{data:null}} : null));
+    const w = await boot("index.html");
+    await waitFor(() => /無法連線雲端/.test($(w, "saveInfo").textContent), 6000, "讀取失敗訊息");
+    await sleep(300);
+    eq(puts().length, 0, "不能送出");
+    assert(!/已同步/.test($(w, "saveInfo").textContent), "不能顯示已同步");
+  });
+
+  test("E2E 讀取：本機有帳本、GET 的 rev 是物件 → 不採用、本機資料和版本號保留", async () => {
+    const remote = ledger(); remote.records = [];
+    resetStorage({"cf-sync-cache": {rev:5, data:ledger()}});
+    server(getLedger({v:6}, remote));
+    const w = await boot("index.html");
+    await waitFor(() => /無法連線雲端/.test($(w, "saveInfo").textContent), 6000, "讀取失敗訊息");
+    await sleep(300);
+    eq(puts().length, 0);
+    eq(cache().rev, 5); eq(cache().data.records.map(r => r.id), ["r1"]);
+  });
+
   /* ---------- 卡片設定：index.html ---------- */
   async function openCards(w){
     w.document.querySelector('#bnav button[data-pg="cards"]').click();
@@ -165,6 +212,20 @@
     eq(puts().length, 1);
     eq(puts()[0].body.data.cards.length, 2);
     eq(cache().data.cards.map(c => c.name), ["卡一", "卡二"]);
+  });
+
+  test("E2E 卡片：PUT 回 200 但缺 rev → 不宣告成功、本機卡片和版本號不變", async () => {
+    resetStorage();
+    const base = getLedger(5, twoCards());
+    server(req => base(req) || (req.method === "PUT" ? {status:200, body:{}} : null));
+    const w = await boot("index.html"); await ready(w); await openCards(w);
+    renameCard(w, "c2", "卡二改"); $(w, "cardsSave").click();
+    await waitFor(() => !$(w, "banner").hidden, 4000, "錯誤提示");
+    await sleep(300);
+    eq(puts().length, 1);
+    assert(/無法確認/.test($(w, "banner").textContent));
+    eq(cache().rev, 5); eq(cache().data.cards.map(c => c.name), ["卡一", "卡二"]);
+    eq(w.document.querySelector('#cardEdit details[data-id="c2"] .f-name').value, "卡二改", "畫面上的修改還在");
   });
 
   test("E2E 卡片：一般儲存（沒有衝突）照舊成功", async () => {
@@ -217,6 +278,22 @@
     rf(w).click();
     await waitFor(() => /沒送出/.test(msg(w)), 4000, "錯誤訊息");
     eq(puts().length, 3);
+    assert(!rf(w).classList.contains("busy"), "不能顯示成更新中");
+  });
+
+  test("E2E 月報更新鍵：GET 的 rev 是物件 → 不送出", async () => {
+    const w = await bootReport(() => ({status:200, body:{rev:{v:3}, data:ledger()}}), () => ({status:200, body:{rev:4}}));
+    rf(w).click();
+    await waitFor(() => /沒送出/.test(msg(w)), 4000, "錯誤訊息");
+    eq(puts().length, 0);
+  });
+
+  test("E2E 月報更新鍵：PUT 回 200 但缺 rev → 不誤報「已請電腦更新」", async () => {
+    const w = await bootReport(() => ({status:200, body:{rev:3, data:ledger()}}), () => ({status:200, body:{}}));
+    rf(w).click();
+    await waitFor(() => /沒送出/.test(msg(w)), 4000, "錯誤訊息");
+    assert(/無法確認/.test(msg(w)), "要說明無法確認");
+    eq(puts().length, 1);
     assert(!rf(w).classList.contains("busy"), "不能顯示成更新中");
   });
 
