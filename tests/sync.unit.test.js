@@ -334,4 +334,70 @@
     await rejects(S.mutate({api, data:baseL, rev:5, fn}), e => eq(e.code, "cards_conflict"));
     eq(api.calls.length, 1);
   });
+
+  /* ---------- 登入資料：記住這台裝置（credLoad／credSave／cacheStore／credDropPw／credClear） ---------- */
+  function mem(init){ const m = new Map(Object.entries(init||{}));
+    return {getItem:k => m.has(k) ? m.get(k) : null, setItem:(k,v) => { m.set(k, String(v)); }, removeItem:k => { m.delete(k); }, obj:() => Object.fromEntries(m)}; }
+  const broken = {getItem(){ throw new Error("blocked"); }, setItem(){ throw new Error("blocked"); }, removeItem(){ throw new Error("blocked"); }};
+
+  test("登入資料：勾「記住」→ 密碼存在 localStorage，sessionStorage 沒有密碼", () => {
+    const ls = mem(), ss = mem();
+    assert(S.credSave(ls, ss, "u1", "pw1", true));
+    eq(ls.obj(), {"cf-user":"u1", "cf-remember":"1", "cf-pw":"pw1"});
+    eq(ss.obj(), {});
+  });
+  test("登入資料：不勾「記住」→ 密碼只存在 sessionStorage，localStorage 只留帳號名稱和選擇", () => {
+    const ls = mem(), ss = mem();
+    assert(S.credSave(ls, ss, "u1", "pw1", false));
+    eq(ls.obj(), {"cf-user":"u1", "cf-remember":"0"});
+    eq(ss.obj(), {"cf-pw":"pw1"});
+  });
+  test("登入資料：從「記住」改成「不記住」→ localStorage 的密碼和帳本快取都刪掉", () => {
+    const ls = mem({"cf-user":"u1", "cf-pw":"old", "cf-sync-cache":"{}", "cf-theme":"x"}), ss = mem();
+    S.credSave(ls, ss, "u1", "pw1", false);
+    eq(ls.obj(), {"cf-user":"u1", "cf-theme":"x", "cf-remember":"0"}, "其他設定不動");
+    eq(ss.obj(), {"cf-pw":"pw1"});
+  });
+  test("登入資料：從「不記住」改成「記住」→ sessionStorage 的密碼和帳本快取都刪掉", () => {
+    const ls = mem({"cf-remember":"0"}), ss = mem({"cf-pw":"old", "cf-sync-cache":"{}"});
+    S.credSave(ls, ss, "u1", "pw1", true);
+    eq(ss.obj(), {});
+    eq(ls.obj()["cf-pw"], "pw1"); eq(ls.obj()["cf-remember"], "1");
+  });
+  test("登入資料：沒指定 remember（undefined）時當作「記住」（和改版前相同）", () => {
+    const ls = mem(), ss = mem();
+    S.credSave(ls, ss, "u1", "pw1");
+    eq(ls.obj()["cf-pw"], "pw1"); eq(ss.obj(), {});
+  });
+  test("登入資料：credLoad 讀取順序與預設值", () => {
+    eq(S.credLoad(mem({"cf-user":"u", "cf-pw":"a"}), mem({"cf-pw":"b"})), {user:"u", pw:"a", remember:true}, "localStorage 有密碼＝記住，優先");
+    eq(S.credLoad(mem({"cf-user":"u"}), mem({"cf-pw":"b"})), {user:"u", pw:"b", remember:false}, "只有 sessionStorage 有＝不記住");
+    eq(S.credLoad(mem({"cf-user":"u"}), mem()), {user:"u", pw:null, remember:true}, "都沒有＝預設記住");
+    eq(S.credLoad(mem({"cf-user":"u", "cf-remember":"0"}), mem()), {user:"u", pw:null, remember:false}, "都沒有＝照上次的選擇");
+    eq(S.credLoad(mem({"cf-remember":"1"}), mem()), {user:null, pw:null, remember:true});
+  });
+  test("登入資料：cacheStore 帳本快取跟著密碼放同一邊", () => {
+    const ls = mem(), ss = mem();
+    assert(S.cacheStore(ls, ss, true) === ls); assert(S.cacheStore(ls, ss, false) === ss); assert(S.cacheStore(ls, ss, undefined) === ls);
+  });
+  test("登入資料：密碼不對（credDropPw）→ 兩邊的密碼刪掉，帳本快取和帳號名稱保留", () => {
+    const ls = mem({"cf-user":"u", "cf-pw":"a", "cf-sync-cache":"L"}), ss = mem({"cf-pw":"b", "cf-sync-cache":"S"});
+    S.credDropPw(ls, ss);
+    eq(ls.obj(), {"cf-user":"u", "cf-sync-cache":"L"}); eq(ss.obj(), {"cf-sync-cache":"S"});
+  });
+  test("登入資料：登出這台裝置（credClear）→ 兩邊的密碼和帳本快取都刪掉，帳號名稱保留", () => {
+    const ls = mem({"cf-user":"u", "cf-pw":"a", "cf-sync-cache":"L", "cf-remember":"0"}), ss = mem({"cf-pw":"b", "cf-sync-cache":"S"});
+    S.credClear(ls, ss);
+    eq(ls.obj(), {"cf-user":"u", "cf-remember":"0"}); eq(ss.obj(), {});
+  });
+  test("登入資料：storage 無法使用（私密模式丟錯、或是 null）→ 不會丟錯，讀到的是空的", () => {
+    eq(S.credLoad(broken, broken), {user:null, pw:null, remember:true});
+    eq(S.credLoad(null, null), {user:null, pw:null, remember:true});
+    eq(S.credSave(broken, broken, "u", "p", true), false, "存不進去要回傳 false");
+    eq(S.credSave(null, null, "u", "p", false), false);
+    S.credDropPw(broken, null); S.credClear(null, broken);
+    const ls = mem();
+    eq(S.credSave(ls, broken, "u", "p", false), false, "sessionStorage 不能用時不能偷偷改存到 localStorage");
+    eq(ls.obj()["cf-pw"], undefined);
+  });
 })();

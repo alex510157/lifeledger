@@ -10,7 +10,8 @@
   window.__mockFetch = async (url, opts, real) => {
     if(!url.startsWith(API)) return real(url, opts);
     const u = new URL(url), method = (opts.method || "GET").toUpperCase();
-    const req = {method, path:u.pathname, query:Object.fromEntries(u.searchParams), body:opts.body ? JSON.parse(opts.body) : null};
+    const hk = (opts.headers || {})["x-cf-key"];
+    const req = {method, path:u.pathname, query:Object.fromEntries(u.searchParams), body:opts.body ? JSON.parse(opts.body) : null, key:hk == null ? null : decodeURIComponent(hk)};
     SERVER.calls.push(req);
     const r = SERVER.handler(req) || {status:404, body:{error:"not mocked"}};
     return new Response(JSON.stringify(r.body), {status:r.status, headers:{"content-type":"application/json"}});
@@ -26,6 +27,7 @@
 
   function resetStorage(extra){
     Object.keys(localStorage).filter(k => /^(cf-|ll-)/.test(k)).forEach(k => localStorage.removeItem(k));
+    Object.keys(sessionStorage).filter(k => /^cf-/.test(k)).forEach(k => sessionStorage.removeItem(k));
     localStorage.setItem("cf-user", TEST_USER); localStorage.setItem("cf-pw", TEST_PW); localStorage.setItem("cf-page", "rec");
     Object.entries(extra || {}).forEach(([k, v]) => localStorage.setItem(k, typeof v === "string" ? v : JSON.stringify(v)));
   }
@@ -438,5 +440,130 @@
     assert(/已請電腦更新/.test(msg(w)), "正常流程要顯示已送出");
   });
 
-  window.__e2eCleanup = () => { if(frame) frame.remove(); Object.keys(localStorage).filter(k => /^(cf-|ll-)/.test(k)).forEach(k => localStorage.removeItem(k)); };
+  /* ---------- 登入：記住這台裝置 ---------- */
+  // 沒有存密碼的狀態（只留帳號名稱），sessionPw：只放在 sessionStorage 的密碼（＝上次沒勾「記住」）
+  function noPwStorage(sessionPw){
+    resetStorage(); localStorage.removeItem("cf-pw");
+    if(sessionPw) sessionStorage.setItem("cf-pw", sessionPw);
+  }
+  const lsHas = k => localStorage.getItem(k) != null, ssHas = k => sessionStorage.getItem(k) != null;
+  async function loginVia(w, remember){
+    await waitFor(() => !$(w, "gate").hidden, 4000, "登入畫面");
+    $(w, "uName").value = TEST_USER; $(w, "pw").value = TEST_PW; $(w, "remember").checked = remember;
+    $(w, "pwBtn").click();
+    await ready(w);
+  }
+
+  test("E2E 登入：不勾「記住這台裝置」→ 密碼和帳本快取只在 sessionStorage，localStorage 不留", async () => {
+    noPwStorage();
+    server(getLedger(5, ledger()));
+    const w = await boot("index.html");
+    await waitFor(() => !$(w, "gate").hidden, 4000, "登入畫面");
+    assert($(w, "remember").checked, "第一次登入預設勾「記住這台裝置」（和改版前的行為相同）");
+    await loginVia(w, false);
+    assert(!lsHas("cf-pw"), "localStorage 不能有密碼");
+    assert(!lsHas("cf-sync-cache"), "localStorage 不能有帳本");
+    eq(sessionStorage.getItem("cf-pw"), TEST_PW);
+    eq(JSON.parse(sessionStorage.getItem("cf-sync-cache")).rev, 5, "帳本快取在 sessionStorage");
+    eq(localStorage.getItem("cf-remember"), "0");
+    eq(localStorage.getItem("cf-user"), TEST_USER, "帳號名稱保留，方便下次預先填好");
+    assert(SERVER.calls.some(c => c.method === "GET" && c.key === TEST_PW), "讀取時有帶密碼");
+  });
+
+  test("E2E 登入：勾「記住這台裝置」→ 密碼和帳本快取在 localStorage（和改版前相同）", async () => {
+    noPwStorage("old-session-pw"); sessionStorage.setItem("cf-sync-cache", "{}");
+    server(getLedger(5, ledger()));
+    const w = await boot("index.html");
+    // sessionStorage 有密碼時會直接進入；先登出再用「記住」登入
+    await ready(w); $(w, "forgetBtn").click();
+    await loginVia(w, true);
+    eq(localStorage.getItem("cf-pw"), TEST_PW);
+    eq(cache().rev, 5);
+    assert(!ssHas("cf-pw") && !ssHas("cf-sync-cache"), "sessionStorage 不留舊的密碼和帳本");
+    eq(localStorage.getItem("cf-remember"), "1");
+  });
+
+  test("E2E 登入：上次沒勾「記住」、分頁還開著（sessionStorage 有密碼）→ 直接進入，不寫到 localStorage", async () => {
+    noPwStorage(TEST_PW);
+    server(getLedger(5, ledger()));
+    const w = await boot("index.html"); await ready(w);
+    assert($(w, "gate").hidden, "不用再登入");
+    assert(!lsHas("cf-pw") && !lsHas("cf-sync-cache"), "localStorage 不留密碼和帳本");
+    assert(ssHas("cf-sync-cache"));
+    eq($(w, "remember").checked, false, "勾選框顯示上次的選擇");
+  });
+
+  test("E2E 登入：上次選「不記住」、分頁關過（都沒有密碼）→ 登入畫面預設不勾", async () => {
+    noPwStorage(); localStorage.setItem("cf-remember", "0");
+    server(getLedger(5, ledger()));
+    const w = await boot("index.html");
+    await waitFor(() => !$(w, "gate").hidden, 4000, "登入畫面");
+    eq($(w, "remember").checked, false);
+    eq($(w, "uName").value, TEST_USER, "帳號名稱預先填好");
+  });
+
+  test("E2E 登入：「在這台裝置登出」→ 兩邊的密碼和帳本快取都刪掉", async () => {
+    resetStorage(); sessionStorage.setItem("cf-pw", "x"); sessionStorage.setItem("cf-sync-cache", "{}");
+    server(getLedger(5, ledger()));
+    const w = await boot("index.html"); await ready(w);
+    assert(lsHas("cf-sync-cache"));
+    $(w, "forgetBtn").click();
+    await waitFor(() => !$(w, "gate").hidden, 4000, "登入畫面");
+    assert(!lsHas("cf-pw") && !lsHas("cf-sync-cache") && !ssHas("cf-pw") && !ssHas("cf-sync-cache"));
+  });
+
+  test("E2E 登入：密碼不對（401）→ 兩邊的密碼都刪掉、回到登入畫面", async () => {
+    noPwStorage("wrong-pw");
+    server(req => common(req) || (req.method === "GET" && req.path === "/api/ledger" ? {status:401, body:{error:"帳號或密碼不對"}} : null));
+    const w = await boot("index.html");
+    await waitFor(() => !$(w, "gate").hidden, 4000, "登入畫面");
+    assert(!ssHas("cf-pw") && !lsHas("cf-pw"));
+  });
+
+  test("E2E 月報頁：密碼只在 sessionStorage → 一樣能打開，「⟳ 更新」也帶得到密碼", async () => {
+    noPwStorage(TEST_PW);
+    const blob = await encBlob(TEST_PW, "<!doctype html><html><head><title>t</title></head><body><p id='rpt'>測試月報</p></body></html>");
+    server(req => {
+      if(req.path === "/api/ledger" && req.query.page === "report") return {status:200, body:{blob, savedAt:"2026-11-21T00:00:00Z"}};
+      if(req.path === "/api/ledger" && req.method === "GET") return {status:200, body:{rev:3, data:ledger()}};
+      if(req.path === "/api/ledger" && req.method === "PUT") return {status:200, body:{rev:4}};
+      return null;
+    });
+    const w = await boot("view.html");
+    await waitFor(() => w.document.getElementById("rpt") && rf(w), 6000, "月報打開");
+    assert(!lsHas("cf-pw"), "打開後也不能寫到 localStorage");
+    rf(w).click();
+    await waitFor(() => rf(w).classList.contains("busy"), 4000, "更新中");
+    eq(puts().length, 1); eq(puts()[0].key, TEST_PW, "更新鍵用 sessionStorage 的密碼");
+  });
+
+  test("E2E 月報頁：在月報頁登入、不勾「記住」→ 密碼只存在 sessionStorage", async () => {
+    noPwStorage();
+    const blob = await encBlob(TEST_PW, "<!doctype html><html><head><title>t</title></head><body><p id='rpt'>測試月報</p></body></html>");
+    server(req => req.path === "/api/ledger" && req.query.page === "report" ? {status:200, body:{blob, savedAt:""}}
+      : (req.path === "/api/ledger" && req.method === "GET" ? {status:200, body:{rev:3, data:ledger()}} : null));
+    const w = await boot("view.html");
+    await waitFor(() => !w.document.getElementById("f").hidden, 4000, "登入表單");
+    assert(w.document.getElementById("rm").checked, "預設勾選");
+    w.document.getElementById("u").value = TEST_USER; w.document.getElementById("pw").value = TEST_PW; w.document.getElementById("rm").checked = false;
+    w.document.querySelector("#f button[type=submit]").click();
+    await waitFor(() => w.document.getElementById("rpt"), 6000, "月報打開");
+    assert(!lsHas("cf-pw")); eq(sessionStorage.getItem("cf-pw"), TEST_PW); eq(localStorage.getItem("cf-remember"), "0");
+  });
+
+  test("E2E 月報頁：在月報頁登入、勾「記住」→ 密碼存在 localStorage（和改版前相同）", async () => {
+    noPwStorage();
+    const blob = await encBlob(TEST_PW, "<!doctype html><html><head><title>t</title></head><body><p id='rpt'>測試月報</p></body></html>");
+    server(req => req.path === "/api/ledger" && req.query.page === "report" ? {status:200, body:{blob, savedAt:""}}
+      : (req.path === "/api/ledger" && req.method === "GET" ? {status:200, body:{rev:3, data:ledger()}} : null));
+    const w = await boot("view.html");
+    await waitFor(() => !w.document.getElementById("f").hidden, 4000, "登入表單");
+    w.document.getElementById("u").value = TEST_USER; w.document.getElementById("pw").value = TEST_PW;
+    w.document.querySelector("#f button[type=submit]").click();
+    await waitFor(() => w.document.getElementById("rpt"), 6000, "月報打開");
+    eq(localStorage.getItem("cf-pw"), TEST_PW); assert(!ssHas("cf-pw"));
+  });
+
+  window.__e2eCleanup =() => { if(frame) frame.remove(); Object.keys(localStorage).filter(k => /^(cf-|ll-)/.test(k)).forEach(k => localStorage.removeItem(k));
+    Object.keys(sessionStorage).filter(k => /^cf-/.test(k)).forEach(k => sessionStorage.removeItem(k)); };
 })();
