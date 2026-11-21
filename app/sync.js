@@ -160,7 +160,40 @@
     return {ok:true, cards, changedIds:[...fromLocal]};
   }
 
-  const LLSync = {SyncError, isLedger, isRev, checkPull, usableConflict, mutate, mergeCards, stable};
+  /* ---- 登入資料放在哪裡（「記住這台裝置」） ----
+   * 勾選：密碼和帳本快取存在 localStorage（關掉瀏覽器也還在，下次不用再輸入）
+   * 不勾：存在 sessionStorage（關掉這個分頁就清掉），localStorage 不留密碼和帳本
+   * 帳號名稱和這個選擇（cf-remember）不是機密，固定存在 localStorage，方便下次預先填好
+   * ls、ss 由呼叫的地方傳入（瀏覽器的 localStorage／sessionStorage，可能是 null）；存取失敗（私密模式等）一律當作沒有 */
+  const K_USER = "cf-user", K_PW = "cf-pw", K_CACHE = "cf-sync-cache", K_REM = "cf-remember";
+  const sGet = (s, k) => { try{ return s ? s.getItem(k) : null; }catch(e){ return null; } };
+  const sSet = (s, k, v) => { try{ if(s){ s.setItem(k, v); return true; } }catch(e){} return false; };
+  const sDel = (s, k) => { try{ if(s) s.removeItem(k); }catch(e){} };
+  /* 讀取：localStorage 有密碼＝記住；只有 sessionStorage 有＝不記住；都沒有＝照上次的選擇（預設記住） */
+  function credLoad(ls, ss){
+    const user = sGet(ls, K_USER), lp = sGet(ls, K_PW), sp = sGet(ss, K_PW);
+    if(lp) return {user, pw:lp, remember:true};
+    if(sp) return {user, pw:sp, remember:false};
+    return {user, pw:null, remember: sGet(ls, K_REM) !== "0"};
+  }
+  /* 存密碼：存到選的那一邊，另一邊的密碼和帳本快取都刪掉 */
+  function credSave(ls, ss, user, pw, remember){
+    remember = remember !== false;
+    if(user != null) sSet(ls, K_USER, user);
+    sSet(ls, K_REM, remember ? "1" : "0");
+    const keep = remember ? ls : ss, drop = remember ? ss : ls;
+    sDel(drop, K_PW); sDel(drop, K_CACHE);
+    return sSet(keep, K_PW, pw);
+  }
+  /* 帳本快取跟著密碼放同一邊 */
+  const cacheStore = (ls, ss, remember) => remember === false ? ss : ls;
+  /* 密碼不對：兩邊的密碼都刪掉（帳本快取保留，重新登入同一個帳號還用得到） */
+  function credDropPw(ls, ss){ sDel(ls, K_PW); sDel(ss, K_PW); }
+  /* 登出這台裝置：兩邊的密碼和帳本快取都刪掉 */
+  function credClear(ls, ss){ [ls, ss].forEach(s => { sDel(s, K_PW); sDel(s, K_CACHE); }); }
+
+  const LLSync = {SyncError, isLedger, isRev, checkPull, usableConflict, mutate, mergeCards, stable,
+                  credLoad, credSave, cacheStore, credDropPw, credClear};
   if(typeof module !== "undefined" && module.exports) module.exports = LLSync;
   else root.LLSync = LLSync;
 })(typeof window !== "undefined" ? window : globalThis);
