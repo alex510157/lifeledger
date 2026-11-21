@@ -407,6 +407,8 @@ html.nfbadge #entry .actions,html.nfbadge #incEntry .incbtn{bottom:calc(70px + v
     <input id="uName" class="inp" autocomplete="username" style="max-width:320px" maxlength="40">
     <label class="flabel" for="pw">密碼（至少 6 個字）</label>
     <input id="pw" type="password" class="inp" autocomplete="current-password" style="max-width:320px">
+    <label class="chk" style="max-width:320px"><input type="checkbox" id="remember" checked> 記住這台裝置（下次不用再輸入密碼）</label>
+    <p class="hint" id="rememberHint" style="margin:0;max-width:320px">只在自己的手機或電腦勾選：密碼會存在這個瀏覽器裡，別人拿到這台裝置就看得到你的帳。共用或公用電腦請不要勾，關掉這個分頁就會自動登出，也不會留下帳本。</p>
     <div id="invWrap" hidden style="display:flex;flex-direction:column;gap:6px;width:100%">
       <label class="flabel" for="inv">邀請碼（向分享給你的人索取）</label>
       <input id="inv" class="inp" style="max-width:320px">
@@ -733,7 +735,11 @@ html.nfbadge #entry .actions,html.nfbadge #incEntry .incbtn{bottom:calc(70px + v
   /* ====== 雲端儲存 ====== */
   let D = null, REV = 0, PW = null, USER = null, syncing = false, lastSync = 0, regMode = false;
   let LOADED = false;   // 只有真的從雲端或本機快取讀到帳本後才允許存檔（畫面上的空白暫存資料不能拿去覆蓋雲端）
-  try{ PW = localStorage.getItem("cf-pw"); USER = localStorage.getItem("cf-user"); }catch(e){}
+  // 密碼放哪裡由「記住這台裝置」決定（見 sync.js 的 credLoad／credSave）：記住＝localStorage，不記住＝sessionStorage（關掉分頁就清掉）
+  const LS = (()=>{ try{ return window.localStorage; }catch(e){ return null; } })(), SS = (()=>{ try{ return window.sessionStorage; }catch(e){ return null; } })();
+  let REMEMBER = true;
+  { const c = LLSync.credLoad(LS, SS); PW = c.pw; USER = c.user; REMEMBER = c.remember; }
+  const CST = () => LLSync.cacheStore(LS, SS, REMEMBER);   // 帳本快取跟著密碼放同一邊
   function seed(){ return {version:1, budget:null, cards:[{id:uid(),bank:"其他",name:"現金／其他",cap:null,cycleDay:null,cats:[],note:""}], records:[]}; }
   function norm(){ D.records = D.records||[]; D.cards = D.cards||[]; D.trips = D.trips||[]; D.incomes = D.incomes||[]; }
   async function api(method, body){
@@ -741,10 +747,10 @@ html.nfbadge #entry .actions,html.nfbadge #incEntry .incbtn{bottom:calc(70px + v
     let j = {}; try{ j = await r.json(); }catch(e){}
     return {status:r.status, j};
   }
-  function cacheSave(){ try{ localStorage.setItem("cf-sync-cache", JSON.stringify({rev:REV,data:D})); }catch(e){} }
+  function cacheSave(){ try{ CST().setItem("cf-sync-cache", JSON.stringify({rev:REV,data:D})); }catch(e){} }
   /* 本機快取：帳本格式和版本號都要符合 API 合約才採用。回傳 "ok"（已載入）、"invalid"（有快取但格式不對，不採用也不刪除）、"none"（沒有快取） */
   function cacheLoad(){
-    let raw=null; try{ raw=localStorage.getItem("cf-sync-cache"); }catch(e){}
+    let raw=null; try{ raw=CST().getItem("cf-sync-cache"); }catch(e){}
     if(raw==null) return "none";
     try{ const c=JSON.parse(raw); if(c && LLSync.isLedger(c.data) && LLSync.isRev(c.rev)){ D=c.data; REV=c.rev; norm(); return "ok"; } }catch(e){}
     return "invalid";
@@ -2005,7 +2011,7 @@ html.nfbadge #entry .actions,html.nfbadge #incEntry .incbtn{bottom:calc(70px + v
     $("recShow").hidden=false; $("recShow").innerHTML="你的救援碼：<b>"+a.j.code+"</b><br>請抄下來或截圖存好（只會顯示這一次）。忘記密碼時，在登入畫面按「忘記密碼？」輸入它就能設新密碼；用過一次就失效。"; renderSec(); });
   $("npwGo").addEventListener("click",async()=>{ const a1=$("npw1").value,a2=$("npw2").value; if(a1.length<6) return toast("新密碼至少 6 個字",true); if(a1!==a2) return toast("兩次輸入不一樣",true);
     const a=await acctApi("changepw","POST",{newPassword:a1}); if(!a.ok) return toast(a.j.error||"改密碼失敗",true);
-    PW=a1; try{ localStorage.setItem("cf-pw",a1); }catch(e){} $("npw1").value=$("npw2").value=""; toast("密碼已改好。記得電腦的設定精靈【0b】也要改成新密碼"); });
+    PW=a1; LLSync.credSave(LS, SS, USER, a1, REMEMBER); $("npw1").value=$("npw2").value=""; toast("密碼已改好。記得電腦的設定精靈【0b】也要改成新密碼"); });
   $("depSave").addEventListener("click",()=>{
     const m=$("depMonth").value; if(!/^\d{4}-\d{2}$/.test(m)) return toast("先選月份",true);
     const banks=$("depBanks").value.split(/[,，、]/).map(x=>x.trim()).filter(Boolean);
@@ -2099,7 +2105,7 @@ html.nfbadge #entry .actions,html.nfbadge #incEntry .incbtn{bottom:calc(70px + v
       if(!D){ D = seed(); norm(); LOADED = true; await mutate(()=>{}); }
       norm(); LOADED = true; cacheSave(); renderAll(); setSync(true);
     }catch(e){
-      if(e&&e.auth){ PW=null; try{localStorage.removeItem("cf-pw");}catch(_){} askPw(e.msg||"帳號或密碼不對，請再試一次。"); }
+      if(e&&e.auth){ PW=null; LLSync.credDropPw(LS, SS); askPw(e.msg||"帳號或密碼不對，請再試一次。"); }
       else { setSync(false, "無法連線雲端："+((e&&e.message)||"請檢查網路")); if(e&&e.code) banner("⚠ "+e.message); }
     }finally{ busy(false); }
   }
@@ -2127,7 +2133,8 @@ html.nfbadge #entry .actions,html.nfbadge #incEntry .incbtn{bottom:calc(70px + v
       }catch(e){ $("pwErr").textContent="連不上伺服器，請檢查網路"; return; }
       finally{ $("pwBtn").disabled=false; }
     }
-    USER=u; PW=v; try{ localStorage.setItem("cf-user",u); localStorage.setItem("cf-pw",v); localStorage.removeItem("cf-sync-cache"); }catch(e){}
+    // 登入：照「記住這台裝置」存密碼；兩邊的舊帳本快取都清掉（可能是別的帳號的）
+    USER=u; PW=v; REMEMBER=$("remember").checked; LLSync.credClear(LS, SS); LLSync.credSave(LS, SS, u, v, REMEMBER);
     start();
   });
   $("pw").addEventListener("keydown",e=>{ if(e.key==="Enter") $("pwBtn").click(); });
@@ -2143,9 +2150,10 @@ html.nfbadge #entry .actions,html.nfbadge #incEntry .incbtn{bottom:calc(70px + v
     }catch(e){ m.textContent="連不上伺服器"; }
   });
   if(USER) $("uName").value=USER;
+  $("remember").checked = REMEMBER;
   if(/[?&]join\b/.test(location.search) && !PW) setMode(true);
   $("syncBtn").addEventListener("click",()=>refresh());
-  $("forgetBtn").addEventListener("click",()=>{ try{ localStorage.removeItem("cf-pw"); localStorage.removeItem("cf-sync-cache"); }catch(e){} PW=null; D=null; setMode(false); askPw("已登出這台裝置。"); });
+  $("forgetBtn").addEventListener("click",()=>{ LLSync.credClear(LS, SS); PW=null; D=null; setMode(false); askPw("已登出這台裝置。"); });
   document.addEventListener("visibilitychange",()=>{ if(!document.hidden) refresh(); });
   setInterval(refresh, 60000);
   if(PW && USER) start(); else askPw("");
