@@ -738,13 +738,59 @@ html.nfbadge #entry .actions,html.nfbadge #incEntry .incbtn{bottom:calc(70px + v
   // 密碼放哪裡由「記住這台裝置」決定（見 sync.js 的 credLoad／credSave）：記住＝localStorage，不記住＝sessionStorage（關掉分頁就清掉）
   const LS = (()=>{ try{ return window.localStorage; }catch(e){ return null; } })(), SS = (()=>{ try{ return window.sessionStorage; }catch(e){ return null; } })();
   let REMEMBER = true;
-  { const c = LLSync.credLoad(LS, SS); PW = c.pw; USER = c.user; REMEMBER = c.remember; }
+  // 登入金鑰 LK：從密碼推出來、代替密碼送到伺服器（伺服器看不到密碼本身）。DEK：解開加密帳本的資料金鑰，只放在記憶體。ENC：雲端帳本是加密的
+  // DEKOK：這把資料金鑰已經成功解開過雲端帳本（解不開的金鑰絕對不能拿來加密寫入，否則帳本會被換成別把金鑰的密文）
+  let LK = null, DEK = null, ENC = false, DEKOK = false;
+  { const c = LLSync.credLoad(LS, SS); PW = c.pw; USER = c.user; LK = c.lk; REMEMBER = c.remember; }
   const CST = () => LLSync.cacheStore(LS, SS, REMEMBER);   // 帳本快取跟著密碼放同一邊
   function seed(){ return {version:1, budget:null, cards:[{id:uid(),bank:"其他",name:"現金／其他",cap:null,cycleDay:null,cats:[],note:""}], records:[]}; }
   function norm(){ D.records = D.records||[]; D.cards = D.cards||[]; D.trips = D.trips||[]; D.incomes = D.incomes||[]; }
+  /* ---- 登入方式（見 sync.js 的 authFetch）：新版伺服器用登入金鑰，舊版伺服器照舊送密碼 ---- */
+  const AUTH = {v2:false, probed:false, legacy:false, lkOk:false, lkSaved:false};
+  const F = (u, o) => fetch(u, o);
+  // 換帳號、換密碼、登出時呼叫：這個頁面記住的登入狀態和資料金鑰都清掉
+  function authReset(){ AUTH.legacy = false; AUTH.lkOk = false; AUTH.lkSaved = false; DEK = null; DEKOK = false; ENC = false; }
+  let AUTHP = null;
+  function authReady(){
+    if(!AUTHP) AUTHP = (async()=>{
+      if(!AUTH.probed){ const v = await LLSync.probeV2(F, LLAPI); if(v !== null){ AUTH.v2 = v; AUTH.probed = true; } }
+      if(AUTH.v2 && !LK && PW && USER) LK = await LLSync.loginKey(USER, PW);   // 60 萬次 PBKDF2，每個頁面只算一次
+    })().finally(()=>{ AUTHP = null; });
+    return AUTHP;
+  }
+  async function af(path, init){
+    await authReady();
+    const r = await LLSync.authFetch(F, LLAPI, path, init, Object.assign(AUTH, {user:USER, pw:PW, lk:LK}));
+    // 伺服器接受了這把登入金鑰才存起來（月報頁的切換列會直接用它，不再送密碼）
+    if(AUTH.lkOk && !AUTH.lkSaved && LK){ AUTH.lkSaved = true; LLSync.credSaveLk(LS, SS, USER, LK, REMEMBER); }
+    return r;
+  }
+  /* 資料金鑰：從伺服器取回用密碼包好的 wrap_pw，在這台裝置解開（伺服器解不開） */
+  async function getDek(){
+    if(DEK) return DEK;
+    const r = await af("/api/ledger?action=keys", {cache:"no-store"}); let j = {}; try{ j = await r.json(); }catch(e){}
+    if(r.status===401||r.status===429) throw {auth:true, msg:j.error};
+    if(!r.ok || !j || !j.wrap_pw) throw LLSync.SyncError("no_key", "雲端帳本已經加密，但讀不到你的資料金鑰（"+(r.ok?"沒有設定":r.status)+"），這台裝置的資料沒有被改動，請稍後再按「立即同步」");
+    DEK = await LLSync.unwrapDek(j.wrap_pw, PW, USER, "pw");
+    return DEK;
+  }
+  /* 讀寫帳本：雲端是加密的就在這裡加解密，LLSync.mutate／checkPull 看到的永遠是明文 {rev, data} */
   async function api(method, body){
-    const r = await fetch(LLAPI+"/api/ledger", {method, cache:"no-store", headers:{"content-type":"application/json","x-cf-user":encodeURIComponent(USER||""),"x-cf-key":encodeURIComponent(PW||"")}, body: body?JSON.stringify(body):undefined});
+    if(method==="PUT" && body && ENC){
+      if(!DEKOK) throw LLSync.SyncError("key_unverified", "這台裝置還沒成功解開雲端的加密帳本，這次沒有存到，資料也沒有被改動。請按「立即同步」後再試一次");
+      body = {base:body.base, enc: await LLSync.encLedger(DEK, body.data, USER)};
+    }
+    const r = await af("/api/ledger", {method, cache:"no-store", headers:{"content-type":"application/json"}, body: body?JSON.stringify(body):undefined});
     let j = {}; try{ j = await r.json(); }catch(e){}
+    if(method==="GET" && r.status===200) ENC = !!(j && j.enc);
+    if(j && j.enc){
+      ENC = true;
+      // GET 解不開就丟出錯誤（讀取失敗，資料不動）；409 解不開就當作沒有附資料（LLSync.mutate 會停下，不覆蓋）
+      try{ j.data = await LLSync.decLedger(await getDek(), j.enc, USER); DEKOK = true; }
+      catch(e){ if(!(e && e.auth)){ DEK = null; DEKOK = false; }   // 下次重新向伺服器取資料金鑰
+        if(method==="GET" || (e && e.auth)) throw e; delete j.data; }
+    }
+    if(method==="PUT" && r.status===400 && j && j.code==="encrypted"){ ENC = true; j.error = "雲端帳本剛在別台裝置改成加密，這次沒有存到，這台裝置的資料沒有被改動。請按「立即同步」後再試一次"; }
     return {status:r.status, j};
   }
   function cacheSave(){ try{ CST().setItem("cf-sync-cache", JSON.stringify({rev:REV,data:D})); }catch(e){} }
@@ -1263,7 +1309,7 @@ html.nfbadge #entry .actions,html.nfbadge #incEntry .incbtn{bottom:calc(70px + v
     const box=$("impList"), info=$("impInfo"); box.textContent=""; info.textContent="讀取中…"; $("impGo").hidden=$("impAll").hidden=true;
     try{
       await loadCatalog();
-      const r=await fetch(LLAPI+"/api/ledger?page=cards",{headers:{"x-cf-user":encodeURIComponent(USER),"x-cf-key":encodeURIComponent(PW)},cache:"no-store"});
+      const r=await af("/api/ledger?page=cards",{cache:"no-store"});
       if(r.status===400){ info.textContent="隨手記網站還是舊版，請先更新網站。"; return; }
       const j=await r.json();
       if(!j.blob){ info.textContent="電腦還沒上傳你的卡片清單：電腦上的 LifeLedger 更新一次（或按「立即更新月報」）就會出現。"; return; }
@@ -1957,9 +2003,16 @@ html.nfbadge #entry .actions,html.nfbadge #incEntry .incbtn{bottom:calc(70px + v
     const lk=document.createElement("div"); lk.className="rlinks"; lk.innerHTML='<a class="rl" href="view.html?p=report"><b>📅 月報</b><span>每月刷卡、回饋、收支</span></a><a class="rl" href="view.html?p=book"><b>📒 生活帳本</b><span>全部期間、勾代墊、查帳</span></a><a class="rl" href="#" id="rfNow"><b>⟳ 請電腦立即更新</b><span>不用等排程，10～15 分鐘內月報、帳本就是最新的</span></a>';
     PG.ana.appendChild(lk);
     lk.querySelector("#rfNow").addEventListener("click",async e=>{ e.preventDefault();
-      const pend=(D.refreshReq||0)>(D.refreshDone||0)&&Date.now()-D.refreshReq<3*3600e3;
-      if(pend){ toast("已經請電腦更新了，10～15 分鐘內完成（電腦要開著）"); return; }
-      if(await act(d=>{ d.refreshReq=Date.now(); },"已請電腦更新：10～15 分鐘內完成（電腦要開著、沒睡著）")) lk.querySelector("#rfNow span").textContent="已送出・"+new Date().toLocaleTimeString("zh-TW",{hour:"2-digit",minute:"2-digit"})+"，好了月報、帳本會是最新的"; });
+      // 「立即更新」的狀態：新版伺服器獨立存在 page=refresh；舊版電腦端程式讀帳本裡的 refreshReq，帳本沒加密時兩邊都寫
+      let rs=null; if(AUTH.v2){ try{ const r=await af("/api/ledger?page=refresh",{cache:"no-store"}); if(r.ok) rs=await r.json(); }catch(x){} }
+      const req=Math.max(D.refreshReq||0,(rs&&rs.refreshReq)||0), done=Math.max(D.refreshDone||0,(rs&&rs.refreshDone)||0);
+      if(req>done&&Date.now()-req<3*3600e3){ toast("已經請電腦更新了，10～15 分鐘內完成（電腦要開著）"); return; }
+      const now=Date.now(), okMsg="已請電腦更新：10～15 分鐘內完成（電腦要開著、沒睡著）";
+      const putRf=async()=>{ const r=await af("/api/ledger?page=refresh",{method:"PUT",cache:"no-store",headers:{"content-type":"application/json"},body:JSON.stringify({refreshReq:now})}); return r.ok; };
+      let ok=false;
+      if(ENC){ busy(true); try{ ok=await putRf(); }catch(x){} finally{ busy(false); } ok ? toast(okMsg) : toast("沒有送出：網路有問題，請稍後再試",true); }
+      else { ok=await act(d=>{ d.refreshReq=now; },okMsg); if(ok&&AUTH.v2) putRf().catch(()=>{}); }
+      if(ok) lk.querySelector("#rfNow span").textContent="已送出・"+new Date().toLocaleTimeString("zh-TW",{hour:"2-digit",minute:"2-digit"})+"，好了月報、帳本會是最新的"; });
     const vt2=vt.cloneNode(false); vt2.setAttribute("aria-label","明細"); vt2.append($("vLg"),$("vInc")); PG.list.append(vt2,$("lgSec"),$("incSec"));
     vt.setAttribute("aria-label","分析"); PG.ana.append(vt,$("capSec"),$("brkSec"),$("tripSec"));
     PG.cards.append($("cardsSec")); $("cardsSec").hidden=false;
@@ -2001,17 +2054,37 @@ html.nfbadge #entry .actions,html.nfbadge #incEntry .incbtn{bottom:calc(70px + v
   $("depGo").addEventListener("click",()=>{ goPage("set"); $("depMonth").value=prevM(); renderDep(); $("depBox").scrollIntoView({block:"start"}); const f=$("depList").querySelector("input[value='']")||$("depList").querySelector("input"); if(f) f.focus(); });
   $("depMonth").addEventListener("change",renderDep);
   /* ====== 帳號安全：救援碼、改密碼 ====== */
-  async function acctApi(action,method,body){ const r=await fetch(LLAPI+"/api/ledger?action="+action,{method,headers:{"x-cf-user":encodeURIComponent(USER),"x-cf-key":encodeURIComponent(PW),"content-type":"application/json"},body:body?JSON.stringify(body):undefined}); let j={}; try{j=await r.json()}catch(e){} return {ok:r.ok,status:r.status,j}; }
+  async function acctApi(action,method,body){ const r=await af("/api/ledger?action="+action,{method,cache:"no-store",headers:{"content-type":"application/json"},body:body?JSON.stringify(body):undefined}); let j={}; try{j=await r.json()}catch(e){} return {ok:r.ok,status:r.status,j}; }
   let recChecked=false;
   async function recRemind(){ if(recChecked) return; recChecked=true; try{ const a=await acctApi("account","GET"); $("recRemind").hidden=!(a.ok && !a.j.hasRecovery); }catch(e){} }
   try{ $("nfbSel").value=window.llBadgeModeGet?llBadgeModeGet():"auto"; $("nfbSel").addEventListener("change",e=>{ if(window.llBadgeMode) llBadgeMode(e.target.value); }); }catch(e){}
   $("recGo").addEventListener("click",()=>{ $("recRemind").hidden=true; goPage("set"); setTimeout(()=>{ const st=$("settings"); if(st) st.open=true; const b=$("secBox"); if(b){ b.scrollIntoView({behavior:"smooth",block:"center"}); } },120); });
   async function renderSec(){ try{ const a=await acctApi("account","GET"); if(a.ok&&a.j.hasRecovery) $("recRemind").hidden=true; $("recInfo").textContent=a.ok?(a.j.hasRecovery?"已有救援碼（"+String(a.j.recAt).slice(0,10)+" 產生）；再產生一次舊的就失效":"還沒有救援碼：忘記密碼時要用，建議現在產生"):""; }catch(e){} }
-  $("recBtn").addEventListener("click",async()=>{ const a=await acctApi("recovery","POST"); if(!a.ok) return toast(a.j.error||"產生失敗（網站可能還是舊版）",true);
-    $("recShow").hidden=false; $("recShow").innerHTML="你的救援碼：<b>"+a.j.code+"</b><br>請抄下來或截圖存好（只會顯示這一次）。忘記密碼時，在登入畫面按「忘記密碼？」輸入它就能設新密碼；用過一次就失效。"; renderSec(); });
+  // 這個帳號有沒有資料金鑰（帳本加密了沒）；舊版伺服器沒有 keys，當作沒有
+  async function hasWrap(){ if(!AUTH.v2) return false; const k=await acctApi("keys","GET"); if(!k.ok) throw new Error(k.j.error||("讀不到資料金鑰（"+k.status+"）")); return !!k.j.wrap_pw; }
+  $("recBtn").addEventListener("click",async()=>{
+    // 帳本已加密：先在這台裝置解開資料金鑰，確定之後能用新救援碼包一份，才產生新救援碼（產生後舊的那份會被伺服器刪掉）
+    let dek=null; try{ await authReady(); if(await hasWrap()) dek=await getDek(); }catch(e){ return toast("沒有產生救援碼："+((e&&e.message)||"網路有問題"),true); }
+    const a=await acctApi("recovery","POST"); if(!a.ok) return toast(a.j.error||"產生失敗（網站可能還是舊版）",true);
+    let warn="";
+    if(dek){ try{ const w=await acctApi("keys","PUT",{wrap_rec:await LLSync.wrapDek(dek,a.j.code,USER,"rec")}); if(!w.ok) throw new Error(w.j.error||w.status); }
+      catch(e){ warn="<br><b>⚠ 救援碼產生了，但用它保管的資料金鑰沒有存好：忘記密碼時它只能重設登入、解不開帳本。請再按一次「產生救援碼」。</b>"; } }
+    $("recShow").hidden=false; $("recShow").innerHTML="你的救援碼：<b>"+a.j.code+"</b><br>請抄下來或截圖存好（只會顯示這一次）。忘記密碼時，在登入畫面按「忘記密碼？」輸入它就能設新密碼；用過一次就失效。"+warn; renderSec(); });
   $("npwGo").addEventListener("click",async()=>{ const a1=$("npw1").value,a2=$("npw2").value; if(a1.length<6) return toast("新密碼至少 6 個字",true); if(a1!==a2) return toast("兩次輸入不一樣",true);
-    const a=await acctApi("changepw","POST",{newPassword:a1}); if(!a.ok) return toast(a.j.error||"改密碼失敗",true);
-    PW=a1; LLSync.credSave(LS, SS, USER, a1, REMEMBER); $("npw1").value=$("npw2").value=""; toast("密碼已改好。記得電腦的設定精靈【0b】也要改成新密碼"); });
+    const body={newPassword:a1};
+    try{
+      await authReady();
+      if(AUTH.v2){
+        // 新版：一起換登入金鑰；帳本已加密就用新密碼重新包資料金鑰（帳本本身不用重新加密）
+        // 電腦端目前還用密碼登入，所以帳號還能用密碼登入時，密碼照常一起改
+        const acc=await acctApi("account","GET"); if(acc.ok && acc.j.hasPassword===false) delete body.newPassword;
+        body.newLoginKey=await LLSync.loginKey(USER,a1);
+        if(await hasWrap()) body.wrap_pw=await LLSync.wrapDek(await getDek(),a1,USER,"pw");
+      }
+    }catch(e){ return toast("沒有改密碼："+((e&&e.message)||"網路有問題"),true); }
+    const a=await acctApi("changepw","POST",body); if(!a.ok) return toast(a.j.error||"改密碼失敗",true);
+    PW=a1; LK=body.newLoginKey||null; AUTH.legacy=false; AUTH.lkOk=false; AUTH.lkSaved=false;   // 資料金鑰和帳本沒有變（DEK、ENC 留著用）
+    LLSync.credSave(LS, SS, USER, a1, REMEMBER); $("npw1").value=$("npw2").value=""; toast("密碼已改好。記得電腦的設定精靈【0b】也要改成新密碼"); });
   $("depSave").addEventListener("click",()=>{
     const m=$("depMonth").value; if(!/^\d{4}-\d{2}$/.test(m)) return toast("先選月份",true);
     const banks=$("depBanks").value.split(/[,，、]/).map(x=>x.trim()).filter(Boolean);
@@ -2105,7 +2178,7 @@ html.nfbadge #entry .actions,html.nfbadge #incEntry .incbtn{bottom:calc(70px + v
       if(!D){ D = seed(); norm(); LOADED = true; await mutate(()=>{}); }
       norm(); LOADED = true; cacheSave(); renderAll(); setSync(true);
     }catch(e){
-      if(e&&e.auth){ PW=null; LLSync.credDropPw(LS, SS); askPw(e.msg||"帳號或密碼不對，請再試一次。"); }
+      if(e&&e.auth){ PW=null; LK=null; authReset(); LLSync.credDropPw(LS, SS); askPw(e.msg||"帳號或密碼不對，請再試一次。"); }
       else { setSync(false, "無法連線雲端："+((e&&e.message)||"請檢查網路")); if(e&&e.code) banner("⚠ "+e.message); }
     }finally{ busy(false); }
   }
@@ -2127,14 +2200,18 @@ html.nfbadge #entry .actions,html.nfbadge #incEntry .incbtn{bottom:calc(70px + v
     if(v.length<6){ $("pwErr").textContent="密碼至少 6 個字"; $("pw").focus(); return; }
     if(regMode){
       $("pwBtn").disabled=true;
-      try{ const r=await fetch(LLAPI+"/api/ledger?action=register",{method:"POST",headers:{"content-type":"application/json"},body:JSON.stringify({user:u,password:v,invite:$("inv").value.trim()})});
+      try{
+        // 新版伺服器：一起設定登入金鑰（之後隨手記只送登入金鑰）；密碼照常設定，電腦端目前還用密碼登入
+        const reg={user:u,password:v,invite:$("inv").value.trim()};
+        const v2=await LLSync.probeV2(F, LLAPI); if(v2===true) reg.loginKey=await LLSync.loginKey(u,v);
+        const r=await fetch(LLAPI+"/api/ledger?action=register",{method:"POST",headers:{"content-type":"application/json"},body:JSON.stringify(reg)});
         let j={}; try{j=await r.json();}catch(e){}
         if(!r.ok){ $("pwErr").textContent=j.error||"建立失敗（"+r.status+"）"; return; }
       }catch(e){ $("pwErr").textContent="連不上伺服器，請檢查網路"; return; }
       finally{ $("pwBtn").disabled=false; }
     }
     // 登入：照「記住這台裝置」存密碼；兩邊的舊帳本快取都清掉（可能是別的帳號的）
-    USER=u; PW=v; REMEMBER=$("remember").checked; LLSync.credClear(LS, SS); LLSync.credSave(LS, SS, u, v, REMEMBER);
+    USER=u; PW=v; LK=null; authReset(); REMEMBER=$("remember").checked; LLSync.credClear(LS, SS); LLSync.credSave(LS, SS, u, v, REMEMBER);
     start();
   });
   $("pw").addEventListener("keydown",e=>{ if(e.key==="Enter") $("pwBtn").click(); });
@@ -2144,16 +2221,36 @@ html.nfbadge #entry .actions,html.nfbadge #incEntry .incbtn{bottom:calc(70px + v
     const u=$("fgUser").value.trim(), c=$("fgCode").value.trim(), v=$("fgPw").value, m=$("fgMsg"); m.className="toast err";
     if(u.length<2||!c||v.length<6){ m.textContent="帳號、救援碼都要填，新密碼至少 6 個字"; return; }
     const body={user:u,newPassword:v}; if(/^[A-Z0-9]{4}-?[A-Z0-9]{4}-?[A-Z0-9]{4}$/i.test(c)) body.code=c; else body.admin=c;
-    try{ const r=await fetch(LLAPI+"/api/ledger?action=reset",{method:"POST",headers:{"content-type":"application/json"},body:JSON.stringify(body)}); let j={}; try{j=await r.json()}catch(e){}
-      if(!r.ok){ m.textContent=j.error||("失敗（"+r.status+"）"); return; }
+    const post=async(action,b)=>{ const r=await fetch(LLAPI+"/api/ledger?action="+action,{method:"POST",headers:{"content-type":"application/json"},body:JSON.stringify(b)}); let j={}; try{j=await r.json()}catch(e){} return {r,j}; };
+    $("fgGo").disabled=true;
+    try{
+      if(await LLSync.probeV2(F, LLAPI)===true){
+        // 新版：一起設定新的登入金鑰。帳本已加密時，用救援碼取回它保管的資料金鑰，在這台裝置用新密碼重新包好（伺服器解不開）
+        m.className="toast"; m.textContent="處理中…（要算一下，約幾秒）";
+        body.newLoginKey=await LLSync.loginKey(u,v);
+        if(body.code){
+          const w=await post("recwrap",{user:u,code:c});
+          if(!w.r.ok){ m.className="toast err"; m.textContent=w.j.error||("失敗（"+w.r.status+"）"); return; }
+          if(w.j.wrap_rec){
+            let dek; try{ dek=await LLSync.unwrapDek(w.j.wrap_rec,c,u,"rec"); }catch(e){ m.className="toast err"; m.textContent="救援碼對了，但它保管的資料金鑰解不開，所以沒有重設（帳本沒有被改動）。請聯絡網站管理者。"; return; }
+            body.wrap_pw=await LLSync.wrapDek(dek,v,u,"pw");
+          }
+        }
+      }
+      const {r,j}=await post("reset",body); m.className="toast err";
+      if(!r.ok){ m.textContent=j.code==="wrap_required"
+          ? (body.admin ? "這個帳號的帳本已經加密，管理碼只能重設登入、解不開帳本，所以沒有重設。請網站管理者在電腦上用救援工具幫你重設。"
+                        : "這個帳號的帳本已經加密，但這個救援碼沒有保管資料金鑰，所以沒有重設（帳本沒有被改動）。請聯絡網站管理者。")
+          : (j.error||("失敗（"+r.status+"）")); return; }
       m.className="toast ok"; m.textContent="新密碼設好了，請用新密碼登入。記得電腦的設定精靈【0b】也要改成新密碼。"; $("uName").value=u; $("pw").value=""; $("pwErr").textContent="";
-    }catch(e){ m.textContent="連不上伺服器"; }
+    }catch(e){ m.className="toast err"; m.textContent=(e&&e.code)?e.message:"連不上伺服器"; }
+    finally{ $("fgGo").disabled=false; }
   });
   if(USER) $("uName").value=USER;
   $("remember").checked = REMEMBER;
   if(/[?&]join\b/.test(location.search) && !PW) setMode(true);
   $("syncBtn").addEventListener("click",()=>refresh());
-  $("forgetBtn").addEventListener("click",()=>{ LLSync.credClear(LS, SS); PW=null; D=null; setMode(false); askPw("已登出這台裝置。"); });
+  $("forgetBtn").addEventListener("click",()=>{ LLSync.credClear(LS, SS); PW=null; LK=null; authReset(); D=null; setMode(false); askPw("已登出這台裝置。"); });
   document.addEventListener("visibilitychange",()=>{ if(!document.hidden) refresh(); });
   setInterval(refresh, 60000);
   if(PW && USER) start(); else askPw("");
