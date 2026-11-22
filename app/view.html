@@ -137,7 +137,8 @@ function llBar(){
     }catch(e){ $('f').hidden=false; return err('登入成功，但這份內容是用舊密碼加密的：剛改過或重設過密碼的話，請在電腦上雙擊「設定精靈.bat」→【0b】填新密碼，再雙擊「立即更新月報.bat」，之後就能用新密碼打開。'); }
     LLSync.credSave(LS,SS,user,pw,remember);
     if(c.lkOk&&c.lk) LLSync.credSaveLk(LS,SS,user,c.lk,remember);   /* 伺服器接受了這把登入金鑰才存（切換列會用它） */
-    html=html.replace(/<head([^>]*)>/i,'<head$1><script>window.LL_ONLINE={page:"'+P+'",saved:"'+(j.savedAt||'')+'",api:"'+API+'"};<\/script>');
+    /* sync.js 也一起載入：頁面裡勾代墊、改分類時用 LLSync.pageLedger 讀寫帳本（登入金鑰、加密帳本） */
+    html=html.replace(/<head([^>]*)>/i,'<head$1><script>window.LL_ONLINE={page:"'+P+'",saved:"'+(j.savedAt||'')+'",api:"'+API+'"};<\/script><script src="sync.js"><\/script>');
     html=html.replace(/<\/body>(?![\s\S]*<\/body>)/i,'<script>('+llBar.toString()+')()<\/script></body>');
     if(!/llBar|ll-sw/.test(html)) html+='<script>('+llBar.toString()+')()<\/script>';
     document.open(); document.write(html); document.close();

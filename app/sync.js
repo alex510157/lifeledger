@@ -307,9 +307,43 @@
     return r;
   }
 
+  /* ====== 月報、生活帳本頁用的帳本讀寫 ======
+   * 這兩頁是電腦產生的，在 view.html 裡打開（view.html 會先載入這個檔案）。頁面裡勾代墊、改分類時會讀寫帳本。
+   * 回傳 api(method, body) → {status, j}，用法和改版前頁面自己的 api 一樣：j 永遠是明文 {rev, data}，帳本加密就在這裡加解密。
+   * 登入資料從 storage 讀（credLoad）：有登入金鑰（伺服器接受過才會存）就送它，否則照舊送密碼。
+   * 加密帳本只有在資料金鑰成功解開過雲端帳本之後才會寫入（和隨手記 index.html 同一條規則）。 */
+  function pageLedger(f, base, ls, ss){
+    const cr = credLoad(ls, ss);
+    const c = {user:cr.user, pw:cr.pw, lk:cr.lk, v2:!!cr.lk};
+    let dek = null, dekOk = false, enc = false;
+    async function getDek(){
+      if(dek) return dek;
+      const r = await authFetch(f, base, "/api/ledger?action=keys", {cache:"no-store"}, c); let j = null; try{ j = await r.json(); }catch(e){}
+      if(r.status === 401) throw SyncError("auth", "登入過期，請回隨手記重新登入");
+      if(!r.ok || !isObj(j) || !j.wrap_pw) throw SyncError("no_key", "雲端帳本已經加密，但讀不到你的資料金鑰（" + r.status + "），這次沒有存到");
+      dek = await unwrapDek(j.wrap_pw, c.pw, c.user, "pw");
+      return dek;
+    }
+    return async function api(method, body){
+      if(method === "PUT" && body && enc){
+        if(!dekOk) throw SyncError("key_unverified", "還沒成功解開雲端的加密帳本，這次沒有存到，請重新整理後再試");
+        body = {base:body.base, enc:await encLedger(dek, body.data, c.user)};
+      }
+      const r = await authFetch(f, base, "/api/ledger", {method, cache:"no-store", headers:{"content-type":"application/json"}, body:body ? JSON.stringify(body) : undefined}, c);
+      let j = {}; try{ j = await r.json(); }catch(e){}
+      if(method === "GET" && r.status === 200) enc = !!(isObj(j) && j.enc);
+      if(isObj(j) && j.enc){
+        enc = true;
+        try{ j.data = await decLedger(await getDek(), j.enc, c.user); dekOk = true; }
+        catch(e){ dek = null; dekOk = false; if(method === "GET") throw e; delete j.data; }   // 409 解不開：當作沒有附資料，頁面會停下
+      }
+      return {status:r.status, j};
+    };
+  }
+
   const LLSync = {SyncError, isLedger, isRev, checkPull, usableConflict, mutate, mergeCards, stable,
                   credLoad, credSave, credSaveLk, cacheStore, credDropPw, credClear,
-                  normUser, normCode, loginKey, newDek, wrapDek, unwrapDek, encLedger, decLedger, probeV2, authFetch, b64e, b64d};
+                  normUser, normCode, loginKey, newDek, wrapDek, unwrapDek, encLedger, decLedger, probeV2, authFetch, pageLedger, b64e, b64d};
   if(typeof module !== "undefined" && module.exports) module.exports = LLSync;
   else root.LLSync = LLSync;
 })(typeof window !== "undefined" ? window : globalThis);
