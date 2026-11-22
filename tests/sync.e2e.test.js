@@ -11,13 +11,14 @@
     if(!url.startsWith(API)) return real(url, opts);
     const u = new URL(url), method = (opts.method || "GET").toUpperCase();
     const hk = (opts.headers || {})["x-cf-key"];
-    const req = {method, path:u.pathname, query:Object.fromEntries(u.searchParams), body:opts.body ? JSON.parse(opts.body) : null, key:hk == null ? null : decodeURIComponent(hk)};
+    const req = {method, path:u.pathname, query:Object.fromEntries(u.searchParams), body:opts.body ? JSON.parse(opts.body) : null, key:hk == null ? null : decodeURIComponent(hk), kind:(opts.headers || {})["x-cf-kind"] || null};
     SERVER.calls.push(req);
     const r = SERVER.handler(req) || {status:404, body:{error:"not mocked"}};
     return new Response(JSON.stringify(r.body), {status:r.status, headers:{"content-type":"application/json"}});
   };
   function server(handler){ SERVER = {handler, calls:[]}; return SERVER; }
-  const puts = () => SERVER.calls.filter(c => c.method === "PUT" && c.path === "/api/ledger");
+  // 帳本的寫入（不含 ?page=、?action= 的請求，例如「立即更新」狀態、資料金鑰）
+  const puts = () => SERVER.calls.filter(c => c.method === "PUT" && c.path === "/api/ledger" && !c.query.page && !c.query.action);
   // 共用的路由：帳號資訊、卡片資料庫
   const common = req => {
     if(req.path === "/api/ledger" && req.query.action === "account") return {status:200, body:{hasRecovery:true}};
@@ -562,6 +563,209 @@
     w.document.querySelector("#f button[type=submit]").click();
     await waitFor(() => w.document.getElementById("rpt"), 6000, "月報打開");
     eq(localStorage.getItem("cf-pw"), TEST_PW); assert(!ssHas("cf-pw"));
+  });
+
+  /* ---------- 用戶端加密、登入金鑰（新版伺服器） ---------- */
+  const L = window.LLSync;
+  const NEW_PW = "e2e-new-password", REC = "ABCD-EFGH-2345";
+  const others = r => SERVER.calls.filter(c => !(c.query.action === "pubkey") && c.path !== "/api/catalog" && !["register", "reset", "recwrap"].includes(c.query.action));
+  /* 假的新版伺服器：有 pubkey、照帳號的登入方式驗證、帳本可以是加密的。st 是伺服器上的狀態，測試直接檢查它 */
+  async function v2Server(o){
+    o = o || {};
+    const st = {rev:3, hasLk:o.hasLk !== false, hasPw:true, lk:await L.loginKey(TEST_USER, TEST_PW), wrap_pw:null, wrap_rec:null, rf:{refreshReq:0, refreshDone:0, refreshOk:null, refreshMsg:""}, puts:0};
+    if(o.encrypted){
+      st.dek = L.newDek();
+      st.wrap_pw = await L.wrapDek(o.wrongKey ? L.newDek() : st.dek, TEST_PW, TEST_USER, "pw");
+      st.enc = await L.encLedger(st.dek, o.data || ledger(), TEST_USER);
+      if(o.recWrap) st.wrap_rec = await L.wrapDek(st.dek, REC, TEST_USER, "rec");
+    } else st.data = o.data || ledger();
+    const ok = b => ({status:200, body:Object.assign({ok:true}, b || {})});
+    server(req => {
+      const A = req.query.action, P = req.query.page;
+      if(req.path === "/api/catalog") return {status:404, body:{}};
+      if(A === "pubkey") return ok({pubkey:null, kid:null});
+      if(o.route){ const x = o.route(req, st); if(x) return x; }
+      if(A === "recwrap") return L.normCode(req.body.code) === L.normCode(REC) ? ok({wrap_rec:st.wrap_rec}) : {status:403, body:{error:"救援碼不對"}};
+      if(A === "reset"){ st.reset = req.body; return ok(); }
+      // 驗證：照登入方式比對
+      if(req.kind === "lk"){ if(!st.hasLk) return {status:401, body:{error:"這個帳號還沒有設定登入金鑰", code:"no_login_key"}}; if(req.key !== st.lk) return {status:401, body:{error:"帳號或密碼不對"}}; }
+      else if(!st.hasPw || req.key !== TEST_PW) return {status:401, body:{error:"帳號或密碼不對"}};
+      if(A === "setlogin"){ st.hasLk = true; st.lk = req.body.loginKey; st.setlogin = req.body; return ok({hasPassword:true, hasLoginKey:true}); }
+      if(A === "account") return ok({hasRecovery:true, recAt:"2026-11-01", hasPassword:st.hasPw, hasLoginKey:st.hasLk});
+      if(A === "keys" && req.method === "GET") return ok({wrap_pw:st.wrap_pw, hasRecWrap:!!st.wrap_rec, adminKid:null});
+      if(A === "keys" && req.method === "PUT"){ if(req.body.wrap_rec) st.wrap_rec = req.body.wrap_rec; return ok(); }
+      if(A === "recovery"){ st.wrap_rec = null; return ok({code:REC, at:"2026-11-22"}); }
+      if(A === "changepw"){ st.changed = req.body; return ok(); }
+      if(P === "refresh"){ if(req.method === "PUT") Object.assign(st.rf, req.body); return {status:200, body:st.rf}; }
+      if(P) return ok({blob:null});
+      if(req.method === "GET") return {status:200, body:st.enc ? {rev:st.rev, enc:st.enc} : {rev:st.rev, data:st.data}};
+      if(req.method === "PUT"){
+        st.puts++;
+        if(o.put){ const x = o.put(req, st); if(x) return x; }
+        if(req.body.base !== st.rev) return {status:409, body:st.enc ? {error:"conflict", rev:st.rev, enc:st.enc} : {error:"conflict", rev:st.rev, data:st.data}};
+        if(req.body.enc) st.enc = req.body.enc; else { if(st.enc) return {status:400, body:{error:"帳本已經加密", code:"encrypted"}}; st.data = req.body.data; }
+        st.rev++; return {status:200, body:{rev:st.rev}};
+      }
+      return null;
+    });
+    return st;
+  }
+  const lkStored = () => JSON.parse(localStorage.getItem("cf-lk") || "null");
+
+  test("E2E 加密：新版伺服器、帳號有登入金鑰 → 每個請求都只送登入金鑰（沒有密碼原文），登入金鑰存在 cf-lk", async () => {
+    resetStorage();
+    const st = await v2Server();
+    const w = await boot("index.html"); await ready(w);
+    await addExpense(w, 120);
+    await waitFor(() => puts().length === 1, 6000, "存檔");
+    const cs = others();
+    assert(cs.length >= 2, "至少有讀取和存檔");
+    cs.forEach(c => { eq([c.kind, c.key], ["lk", st.lk], c.method + " " + JSON.stringify(c.query)); });
+    eq(lkStored(), {u:TEST_USER, lk:st.lk});
+  });
+
+  test("E2E 加密：舊帳號（還沒有登入金鑰）→ 先用密碼讀到，自動補上登入金鑰（不停用密碼），之後只送登入金鑰", async () => {
+    resetStorage();
+    const st = await v2Server({hasLk:false});
+    const expect = st.lk;
+    const w = await boot("index.html"); await ready(w);
+    await waitFor(() => st.setlogin, 6000, "setlogin");
+    eq(st.setlogin, {loginKey:expect}, "只補登入金鑰，沒有 dropPassword");
+    await addExpense(w, 120);
+    await waitFor(() => puts().length === 1, 6000, "存檔");
+    eq([puts()[0].kind, puts()[0].key], ["lk", expect], "補上之後存檔只送登入金鑰");
+    eq(lkStored(), {u:TEST_USER, lk:expect});
+  });
+
+  test("E2E 加密：舊版伺服器（沒有 pubkey）→ 照舊送密碼、不帶 x-cf-kind、不存登入金鑰（不會因為送錯金鑰被鎖）", async () => {
+    resetStorage();
+    server(getLedger(5, ledger()));
+    const w = await boot("index.html"); await ready(w);
+    others().forEach(c => eq([c.kind, c.key], [null, TEST_PW]));
+    eq(localStorage.getItem("cf-lk"), null);
+  });
+
+  test("E2E 加密：加密的帳本 → 讀得到；新增一筆只送密文（沒有 data），解開後是完整帳本＋新的一筆", async () => {
+    resetStorage();
+    const st = await v2Server({encrypted:true});
+    const w = await boot("index.html"); await ready(w);
+    eq(shownItems(w), 1, "解開後顯示雲端的記錄");
+    await addExpense(w, 120);
+    await waitFor(() => puts().length === 1, 6000, "存檔");
+    const b = puts()[0].body;
+    assert(b.enc && !("data" in b), "只送密文"); eq(Object.keys(b).sort(), ["base", "enc"]); assert(!/卡一|餐飲|"records"/.test(JSON.stringify(b)), "送出的內容看不到明文（中文和 JSON 欄位名稱不會出現在 base64 裡）");
+    const d = await L.decLedger(st.dek, st.enc, TEST_USER);
+    eq(d.records.length, 2); eq(d.cards.map(c => c.name), ["卡一"]);
+    eq(cache().data.records.length, 2, "本機快取（這台裝置）是解開後的帳本");
+  });
+
+  test("E2E 加密：加密帳本 409（附最新密文）→ 解開、重套、用密文重送，別台裝置的記錄保留", async () => {
+    resetStorage();
+    const st = await v2Server({encrypted:true});
+    const w = await boot("index.html"); await ready(w);
+    st.enc = await L.encLedger(st.dek, remoteWithX(), TEST_USER); st.rev = 4;   // 別台裝置存過一次（加了 rX）
+    await addExpense(w, 120);
+    await waitFor(() => puts().length === 2, 6000, "重送");
+    eq(puts().map(p => [p.body.base, !!p.body.enc, "data" in p.body]), [[3, true, false], [4, true, false]]);
+    const d = await L.decLedger(st.dek, st.enc, TEST_USER);
+    eq(d.records.map(r => r.id).filter(id => id === "r1" || id === "rX"), ["r1", "rX"]); eq(d.records.length, 3);
+  });
+
+  test("E2E 加密：資料金鑰解不開（密碼對、但 wrap_pw 不是這本帳的）→ 不送出任何寫入、顯示錯誤、本機資料不動", async () => {
+    resetStorage({"cf-sync-cache":{rev:3, data:ledger()}});
+    const st = await v2Server({encrypted:true, wrongKey:true});
+    const w = await boot("index.html");
+    await waitFor(() => /無法連線雲端/.test($(w, "saveInfo").textContent), 6000, "讀取失敗訊息");
+    await addExpense(w, 120);
+    await waitFor(() => !$(w, "banner").hidden, 6000, "錯誤提示");
+    await sleep(300);
+    eq(st.puts, 0, "不能送出");
+    eq(cache().data.records.map(r => r.id), ["r1"], "本機資料沒有被改動");
+  });
+
+  test("E2E 加密：改密碼 → 一起送新密碼、新的登入金鑰、用新密碼包的資料金鑰（解開是同一把），之後用新的登入金鑰", async () => {
+    resetStorage();
+    const st = await v2Server({encrypted:true});
+    const w = await boot("index.html"); await ready(w);
+    $(w, "npw1").value = $(w, "npw2").value = NEW_PW; $(w, "npwGo").click();
+    await waitFor(() => st.changed, 8000, "changepw");
+    const nlk = await L.loginKey(TEST_USER, NEW_PW);
+    eq([st.changed.newPassword, st.changed.newLoginKey], [NEW_PW, nlk], "電腦端還用密碼登入，所以密碼也一起改");
+    eq(L.b64e(await L.unwrapDek(st.changed.wrap_pw, NEW_PW, TEST_USER, "pw")), L.b64e(st.dek), "新密碼解得開同一把資料金鑰");
+    await waitFor(() => localStorage.getItem("cf-pw") === NEW_PW, 4000, "存新密碼");
+    // 伺服器換成新的登入方式後，下一次存檔用新的登入金鑰，而且照舊加密
+    st.lk = nlk; st.wrap_pw = st.changed.wrap_pw;
+    await addExpense(w, 50);
+    await waitFor(() => puts().length === 1, 6000, "存檔");
+    eq([puts()[0].kind, puts()[0].key, !!puts()[0].body.enc], ["lk", nlk, true]);
+  });
+
+  test("E2E 加密：產生救援碼 → 用救援碼包一份資料金鑰存回去（伺服器只拿到包好的）", async () => {
+    resetStorage();
+    const st = await v2Server({encrypted:true});
+    const w = await boot("index.html"); await ready(w);
+    $(w, "recBtn").click();
+    await waitFor(() => st.wrap_rec, 8000, "存 wrap_rec");
+    eq(L.b64e(await L.unwrapDek(st.wrap_rec, REC, TEST_USER, "rec")), L.b64e(st.dek));
+    await waitFor(() => /ABCD-EFGH-2345/.test($(w, "recShow").textContent), 4000, "顯示救援碼");
+    assert(!/⚠/.test($(w, "recShow").textContent), "沒有警告");
+  });
+
+  test("E2E 加密：忘記密碼用救援碼 → 在這台裝置解開資料金鑰、用新密碼重新包，重設時一起送", async () => {
+    noPwStorage();
+    const st = await v2Server({encrypted:true, recWrap:true});
+    const w = await boot("index.html");
+    await waitFor(() => !$(w, "gate").hidden, 4000, "登入畫面");
+    $(w, "fgBtn").click(); $(w, "fgUser").value = TEST_USER; $(w, "fgCode").value = REC.toLowerCase(); $(w, "fgPw").value = NEW_PW;
+    $(w, "fgGo").click();
+    await waitFor(() => st.reset, 10000, "reset");
+    eq([st.reset.user, st.reset.code, st.reset.newPassword, st.reset.newLoginKey], [TEST_USER, REC.toLowerCase(), NEW_PW, await L.loginKey(TEST_USER, NEW_PW)]);
+    eq(L.b64e(await L.unwrapDek(st.reset.wrap_pw, NEW_PW, TEST_USER, "pw")), L.b64e(st.dek), "新密碼解得開同一把資料金鑰");
+    await waitFor(() => /新密碼設好了/.test($(w, "fgMsg").textContent), 4000, "成功訊息");
+  });
+
+  test("E2E 加密：忘記密碼、但救援碼沒有保管資料金鑰 → 伺服器回 wrap_required 時說明清楚", async () => {
+    noPwStorage();
+    const st = await v2Server({encrypted:true, route:(req) => req.query.action === "reset" ? {status:400, body:{error:"x", code:"wrap_required"}} : null});
+    const w = await boot("index.html");
+    await waitFor(() => !$(w, "gate").hidden, 4000, "登入畫面");
+    $(w, "fgBtn").click(); $(w, "fgUser").value = TEST_USER; $(w, "fgCode").value = REC; $(w, "fgPw").value = NEW_PW;
+    $(w, "fgGo").click();
+    await waitFor(() => /沒有保管資料金鑰/.test($(w, "fgMsg").textContent), 10000, "說明");
+    assert(!("wrap_pw" in SERVER.calls.find(c => c.query.action === "reset").body), "沒有 wrap_rec 就不送 wrap_pw");
+  });
+
+  test("E2E 加密：帳本已加密時「請電腦立即更新」→ 只寫 page=refresh，不寫帳本", async () => {
+    resetStorage();
+    const st = await v2Server({encrypted:true});
+    const w = await boot("index.html"); await ready(w);
+    w.document.getElementById("rfNow").click();
+    await waitFor(() => st.rf.refreshReq > 0, 6000, "page=refresh");
+    await sleep(200);
+    eq(st.puts, 0, "不寫帳本");
+  });
+
+  test("E2E 加密：帳本沒加密時「請電腦立即更新」→ 帳本照舊寫 refreshReq（目前的電腦端讀這裡），page=refresh 也寫", async () => {
+    resetStorage();
+    const st = await v2Server();
+    const w = await boot("index.html"); await ready(w);
+    w.document.getElementById("rfNow").click();
+    await waitFor(() => puts().length === 1 && st.rf.refreshReq > 0, 6000, "兩邊都寫");
+    eq(puts()[0].body.data.refreshReq, st.rf.refreshReq);
+  });
+
+  test("E2E 加密：月報頁（新版伺服器）→ 用登入金鑰下載；帳本已加密時「⟳ 更新」只寫 page=refresh", async () => {
+    resetStorage();
+    const blob = await encBlob(TEST_PW, "<!doctype html><html><head><title>t</title></head><body><p id='rpt'>測試月報</p></body></html>");
+    const st = await v2Server({encrypted:true, route:(req, st) => req.query.page === "report" && req.kind === "lk" && req.key === st.lk ? {status:200, body:{blob, savedAt:""}} : null});
+    const w = await boot("view.html");
+    await waitFor(() => w.document.getElementById("rpt") && rf(w), 8000, "月報打開");
+    eq(lkStored(), {u:TEST_USER, lk:st.lk}, "伺服器接受後存登入金鑰");
+    rf(w).click();
+    await waitFor(() => st.rf.refreshReq > 0, 6000, "page=refresh");
+    await waitFor(() => rf(w).classList.contains("busy"), 4000, "更新中");
+    eq(st.puts, 0, "不寫帳本");
+    others().forEach(c => eq([c.kind, c.key], ["lk", st.lk], "月報頁和切換列都只送登入金鑰：" + JSON.stringify(c.query)));
   });
 
   window.__e2eCleanup =() => { if(frame) frame.remove(); Object.keys(localStorage).filter(k => /^(cf-|ll-)/.test(k)).forEach(k => localStorage.removeItem(k));
