@@ -370,11 +370,11 @@
     eq(ls.obj()["cf-pw"], "pw1"); eq(ss.obj(), {});
   });
   test("登入資料：credLoad 讀取順序與預設值", () => {
-    eq(S.credLoad(mem({"cf-user":"u", "cf-pw":"a"}), mem({"cf-pw":"b"})), {user:"u", pw:"a", remember:true}, "localStorage 有密碼＝記住，優先");
-    eq(S.credLoad(mem({"cf-user":"u"}), mem({"cf-pw":"b"})), {user:"u", pw:"b", remember:false}, "只有 sessionStorage 有＝不記住");
-    eq(S.credLoad(mem({"cf-user":"u"}), mem()), {user:"u", pw:null, remember:true}, "都沒有＝預設記住");
-    eq(S.credLoad(mem({"cf-user":"u", "cf-remember":"0"}), mem()), {user:"u", pw:null, remember:false}, "都沒有＝照上次的選擇");
-    eq(S.credLoad(mem({"cf-remember":"1"}), mem()), {user:null, pw:null, remember:true});
+    eq(S.credLoad(mem({"cf-user":"u", "cf-pw":"a"}), mem({"cf-pw":"b"})), {user:"u", pw:"a", lk:null, remember:true}, "localStorage 有密碼＝記住，優先");
+    eq(S.credLoad(mem({"cf-user":"u"}), mem({"cf-pw":"b"})), {user:"u", pw:"b", lk:null, remember:false}, "只有 sessionStorage 有＝不記住");
+    eq(S.credLoad(mem({"cf-user":"u"}), mem()), {user:"u", pw:null, lk:null, remember:true}, "都沒有＝預設記住");
+    eq(S.credLoad(mem({"cf-user":"u", "cf-remember":"0"}), mem()), {user:"u", pw:null, lk:null, remember:false}, "都沒有＝照上次的選擇");
+    eq(S.credLoad(mem({"cf-remember":"1"}), mem()), {user:null, pw:null, lk:null, remember:true});
   });
   test("登入資料：cacheStore 帳本快取跟著密碼放同一邊", () => {
     const ls = mem(), ss = mem();
@@ -391,13 +391,120 @@
     eq(ls.obj(), {"cf-user":"u", "cf-remember":"0"}); eq(ss.obj(), {});
   });
   test("登入資料：storage 無法使用（私密模式丟錯、或是 null）→ 不會丟錯，讀到的是空的", () => {
-    eq(S.credLoad(broken, broken), {user:null, pw:null, remember:true});
-    eq(S.credLoad(null, null), {user:null, pw:null, remember:true});
+    eq(S.credLoad(broken, broken), {user:null, pw:null, lk:null, remember:true});
+    eq(S.credLoad(null, null), {user:null, pw:null, lk:null, remember:true});
     eq(S.credSave(broken, broken, "u", "p", true), false, "存不進去要回傳 false");
     eq(S.credSave(null, null, "u", "p", false), false);
     S.credDropPw(broken, null); S.credClear(null, broken);
     const ls = mem();
     eq(S.credSave(ls, broken, "u", "p", false), false, "sessionStorage 不能用時不能偷偷改存到 localStorage");
     eq(ls.obj()["cf-pw"], undefined);
+  });
+  /* ---------- 登入金鑰的儲存（cf-lk） ---------- */
+  test("登入金鑰：credSaveLk 存在密碼那一邊；credLoad 只在同一個帳號時讀出（大小寫、前後空白不影響）", () => {
+    const ls = mem({"cf-user":" Alex "}), ss = mem();
+    S.credSave(ls, ss, " Alex ", "pw1", true);
+    eq(S.credSaveLk(ls, ss, " Alex ", "LK1", true), true);
+    eq(S.credLoad(ls, ss).lk, "LK1");
+    ls.setItem("cf-user", "bob");
+    eq(S.credLoad(ls, ss).lk, null, "換了帳號就不用舊的登入金鑰");
+    const ls2 = mem(), ss2 = mem();
+    S.credSave(ls2, ss2, "u", "pw", false); S.credSaveLk(ls2, ss2, "u", "LK2", false);
+    eq(ls2.obj()["cf-lk"], undefined, "不記住：localStorage 不留登入金鑰");
+    eq(S.credLoad(ls2, ss2).lk, "LK2");
+  });
+  test("登入金鑰：credSave（換密碼）、credDropPw、credClear 都會刪掉兩邊的登入金鑰", () => {
+    const mk = () => [mem({"cf-user":"u", "cf-pw":"a", "cf-lk":JSON.stringify({u:"u", lk:"X"})}), mem({"cf-pw":"b", "cf-lk":JSON.stringify({u:"u", lk:"Y"})})];
+    let [ls, ss] = mk(); S.credSave(ls, ss, "u", "new", true); eq([ls.obj()["cf-lk"], ss.obj()["cf-lk"]], [undefined, undefined], "credSave");
+    [ls, ss] = mk(); S.credDropPw(ls, ss); eq([ls.obj()["cf-lk"], ss.obj()["cf-lk"]], [undefined, undefined], "credDropPw");
+    [ls, ss] = mk(); S.credClear(ls, ss); eq([ls.obj()["cf-lk"], ss.obj()["cf-lk"]], [undefined, undefined], "credClear");
+    eq(S.credLoad(mem({"cf-user":"u", "cf-pw":"a", "cf-lk":"不是 JSON"}), mem()).lk, null, "格式不對就當作沒有");
+  });
+
+  /* ---------- 加密 ---------- */
+  test("加密：登入金鑰 = PBKDF2-SHA256(密碼, \"login:\"+帳號小寫, 600000)（固定的測試向量，電腦端要算出一樣的值）", async () => {
+    eq(await S.loginKey("Test-User", "correct horse"), "VCNxNmNqtlwQLOc/gNLpFlrQx9oitlCqHfXaYeD+4KI=");
+    eq(await S.loginKey("  test-user ", "correct horse"), "VCNxNmNqtlwQLOc/gNLpFlrQx9oitlCqHfXaYeD+4KI=", "帳號大小寫、前後空白不影響");
+    assert(await S.loginKey("other", "correct horse") !== "VCNxNmNqtlwQLOc/gNLpFlrQx9oitlCqHfXaYeD+4KI=", "不同帳號不同");
+  });
+  test("加密：資料金鑰用密碼包好再解開 → 一樣；密碼、帳號、用途不對都解不開", async () => {
+    const dek = S.newDek(), w = await S.wrapDek(dek, "pw-1", "Alex", "pw");
+    eq([w.v, w.iter, typeof w.salt, typeof w.iv, typeof w.ct], [1, 600000, "string", "string", "string"]);
+    eq(S.b64e(await S.unwrapDek(w, "pw-1", "alex", "pw")), S.b64e(dek));
+    for(const [pw, user, kind, why] of [["pw-2", "alex", "pw", "密碼不對"], ["pw-1", "bob", "pw", "別人的帳號"], ["pw-1", "alex", "rec", "用途不對"]])
+      await rejects(S.unwrapDek(w, pw, user, kind), e => eq(e.code, "key_mismatch", why));
+  });
+  test("加密：救援碼包的資料金鑰，輸入時大小寫和 - 不影響", async () => {
+    const dek = S.newDek(), w = await S.wrapDek(dek, "ABCD-EFGH-2345", "u", "rec");
+    eq(S.b64e(await S.unwrapDek(w, "abcdefgh2345", "u", "rec")), S.b64e(dek));
+  });
+  test("加密：伺服器傳來的包裝格式不對（iter 太大或太小、版本不對）→ 不計算、直接拒絕", async () => {
+    const w = await S.wrapDek(S.newDek(), "pw", "u", "pw");
+    for(const bad of [{iter:1e9}, {iter:1000}, {iter:"600000"}, {v:2}])
+      await rejects(S.unwrapDek(Object.assign({}, w, bad), "pw", "u", "pw"), e => eq(e.code, "bad_key", JSON.stringify(bad)));
+    await rejects(S.unwrapDek(null, "pw", "u", "pw"), e => eq(e.code, "bad_key"));
+  });
+  test("加密：帳本加密再解開 → 內容一樣；別人的帳號、被改過的密文、別把金鑰都解不開", async () => {
+    const dek = S.newDek(), d = ledger({note:"中文 ✓"}), enc = await S.encLedger(dek, d, "Alex");
+    eq(Object.keys(enc).sort(), ["ct", "iv", "v"]); assert(!/中文|"records"/.test(JSON.stringify(enc)), "密文裡看不到內容");
+    eq(await S.decLedger(dek, enc, "alex"), d);
+    await rejects(S.decLedger(dek, enc, "bob"), e => eq(e.code, "decrypt_failed", "別人的帳號"));
+    const ct = S.b64d(enc.ct); ct[0] ^= 1;
+    await rejects(S.decLedger(dek, Object.assign({}, enc, {ct:S.b64e(ct)}), "alex"), e => eq(e.code, "decrypt_failed", "被改過"));
+    await rejects(S.decLedger(S.newDek(), enc, "alex"), e => eq(e.code, "decrypt_failed", "別把金鑰"));
+    await rejects(S.decLedger(dek, {v:2, iv:enc.iv, ct:enc.ct}, "alex"), e => eq(e.code, "decrypt_failed", "不認得的版本"));
+  });
+  test("加密：格式不完整的帳本不加密；解開後格式不對也不採用", async () => {
+    const dek = S.newDek();
+    await rejects(S.encLedger(dek, {records:[]}, "u"), e => eq(e.code, "bad_draft"));
+    // 用同樣的參數手動加密一份不是帳本的 JSON
+    const iv = crypto.getRandomValues(new Uint8Array(12)), k = await crypto.subtle.importKey("raw", dek, {name:"AES-GCM"}, false, ["encrypt"]);
+    const ct = new Uint8Array(await crypto.subtle.encrypt({name:"AES-GCM", iv, additionalData:new TextEncoder().encode("cf-ledger:v1:u")}, k, new TextEncoder().encode('{"records":"x"}')));
+    await rejects(S.decLedger(dek, {v:1, iv:S.b64e(iv), ct:S.b64e(ct)}, "u"), e => eq(e.code, "bad_response"));
+  });
+
+  /* ---------- 帶登入資料的請求 ---------- */
+  function fakeFetch(handler){
+    const calls = [];
+    const f = async (url, o) => { const h = o.headers || {}; const c = {url, method:o.method || "GET", key:decodeURIComponent(h["x-cf-key"] || ""), kind:h["x-cf-kind"] || null, body:o.body ? JSON.parse(o.body) : null};
+      calls.push(c); const r = handler(c, calls.length); return new Response(JSON.stringify(r.body || {}), {status:r.status}); };
+    return {f, calls};
+  }
+  test("請求：新版伺服器、帳號有登入金鑰 → 只送登入金鑰（x-cf-kind: lk），不送密碼", async () => {
+    const {f, calls} = fakeFetch(() => ({status:200, body:{ok:1}}));
+    const c = {user:"u", pw:"PW", lk:"LK", v2:true};
+    const r = await S.authFetch(f, "https://x", "/api/ledger", {cache:"no-store"}, c);
+    eq(r.status, 200); eq(calls.map(x => [x.key, x.kind]), [["LK", "lk"]]); eq(c.lkOk, true);
+  });
+  test("請求：舊帳號（no_login_key）→ 改用密碼，成功後自動補上登入金鑰，之後只送登入金鑰", async () => {
+    let hasLk = false;
+    const {f, calls} = fakeFetch(x => {
+      if(/setlogin/.test(x.url)){ hasLk = true; return {status:200, body:{ok:true}}; }
+      if(x.kind === "lk") return hasLk ? {status:200} : {status:401, body:{code:"no_login_key"}};
+      return x.key === "PW" ? {status:200} : {status:401};
+    });
+    const c = {user:"u", pw:"PW", lk:"LK", v2:true};
+    eq((await S.authFetch(f, "https://x", "/api/ledger", {}, c)).status, 200);
+    eq(calls.map(x => [x.key, x.kind, /setlogin/.test(x.url)]), [["LK", "lk", false], ["PW", null, false], ["PW", null, true]]);
+    eq(calls[2].body, {loginKey:"LK"}, "setlogin 只補登入金鑰（不停用密碼，電腦端還在用）");
+    eq([c.legacy, c.lkOk], [false, true]);
+    eq((await S.authFetch(f, "https://x", "/api/ledger", {}, c)).status, 200);
+    eq(calls.slice(3).map(x => [x.key, x.kind]), [["LK", "lk"]], "之後只送登入金鑰");
+  });
+  test("請求：登入金鑰錯了（401、沒有 no_login_key）→ 不改送密碼（不會多算一次錯誤）", async () => {
+    const {f, calls} = fakeFetch(() => ({status:401, body:{error:"帳號或密碼不對"}}));
+    const r = await S.authFetch(f, "https://x", "/api/ledger", {}, {user:"u", pw:"PW", lk:"LK", v2:true});
+    eq(r.status, 401); eq(calls.length, 1);
+  });
+  test("請求：舊版伺服器（v2 = false）→ 照舊只送密碼，不帶 x-cf-kind", async () => {
+    const {f, calls} = fakeFetch(() => ({status:200}));
+    await S.authFetch(f, "https://x", "/api/ledger", {}, {user:"u", pw:"PW", lk:"LK", v2:false});
+    eq(calls.map(x => [x.key, x.kind]), [["PW", null]]);
+  });
+  test("請求：probeV2 → 新版 true、舊版 false、連不上 null", async () => {
+    eq(await S.probeV2(fakeFetch(() => ({status:200, body:{pubkey:null, kid:null}})).f, "https://x"), true);
+    eq(await S.probeV2(fakeFetch(() => ({status:401, body:{error:"請先登入"}})).f, "https://x"), false);
+    eq(await S.probeV2(fakeFetch(() => ({status:200, body:{rev:0, data:null}})).f, "https://x"), false);
+    eq(await S.probeV2(async () => { throw new TypeError("offline"); }, "https://x"), null);
   });
 })();
