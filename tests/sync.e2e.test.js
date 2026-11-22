@@ -582,11 +582,13 @@
       st.enc = await L.encLedger(st.dek, o.data || ledger(), TEST_USER);
       if(o.recWrap) st.wrap_rec = await L.wrapDek(st.dek, REC, TEST_USER, "rec");
     } else st.data = o.data || ledger();
+    if(o.resume){ st.dek = L.newDek(); st.wrap_pw = await L.wrapDek(st.dek, TEST_PW, TEST_USER, "pw"); st.wrap_rec = await L.wrapDek(st.dek, REC, TEST_USER, "rec"); }
+    st.snaps = o.snaps || null;
     const ok = b => ({status:200, body:Object.assign({ok:true}, b || {})});
     server(req => {
       const A = req.query.action, P = req.query.page;
       if(req.path === "/api/catalog") return {status:404, body:{}};
-      if(A === "pubkey") return ok({pubkey:null, kid:null});
+      if(A === "pubkey") return ok(o.pub ? {pubkey:o.pub, kid:o.kid} : {pubkey:null, kid:null});
       if(o.route){ const x = o.route(req, st); if(x) return x; }
       if(A === "recwrap") return L.normCode(req.body.code) === L.normCode(REC) ? ok({wrap_rec:st.wrap_rec}) : {status:403, body:{error:"救援碼不對"}};
       if(A === "reset"){ st.reset = req.body; return ok(); }
@@ -595,8 +597,19 @@
       else if(!st.hasPw || req.key !== TEST_PW) return {status:401, body:{error:"帳號或密碼不對"}};
       if(A === "setlogin"){ st.hasLk = true; st.lk = req.body.loginKey; st.setlogin = req.body; return ok({hasPassword:true, hasLoginKey:true}); }
       if(A === "account") return ok({hasRecovery:true, recAt:"2026-11-01", hasPassword:st.hasPw, hasLoginKey:st.hasLk});
-      if(A === "keys" && req.method === "GET") return ok({wrap_pw:st.wrap_pw, hasRecWrap:!!st.wrap_rec, adminKid:null});
-      if(A === "keys" && req.method === "PUT"){ if(req.body.wrap_rec) st.wrap_rec = req.body.wrap_rec; return ok(); }
+      if(A === "keys" && req.method === "GET") return ok({wrap_pw:st.wrap_pw, hasRecWrap:!!st.wrap_rec, adminKid:st.wrap_admin ? st.wrap_admin.kid : null});
+      if(A === "keys" && req.method === "PUT"){
+        if(req.body.wrap_pw){ if(o.racePw && !st.wrap_pw) st.wrap_pw = o.racePw;   // 模擬別台裝置剛好先存了
+          if(st.wrap_pw) return {status:409, body:{error:"已經有資料金鑰", code:"wrap_exists"}}; st.wrap_pw = req.body.wrap_pw; }
+        if(req.body.wrap_rec) st.wrap_rec = req.body.wrap_rec;
+        if(req.body.wrap_admin) st.wrap_admin = req.body.wrap_admin;
+        return ok();
+      }
+      if(A === "snapshots") return ok({dates:Object.keys(st.snaps || {}).sort()});
+      if(A === "snapshot"){ const s = (st.snaps || {})[req.query.date]; if(!s) return {status:404, body:{error:"沒有"}};
+        if(req.method === "GET") return ok(s.enc ? {date:req.query.date, rev:s.rev, enc:s.enc} : {date:req.query.date, rev:s.rev, data:s.data});
+        if(s.enc) return {status:409, body:{code:"already_encrypted"}}; if(req.body.rev !== s.rev) return {status:409, body:{code:"rev_mismatch"}};
+        st.snaps[req.query.date] = {rev:s.rev, enc:req.body.enc}; return ok(); }
       if(A === "recovery"){ st.wrap_rec = null; return ok({code:REC, at:"2026-11-22"}); }
       if(A === "changepw"){ st.changed = req.body; return ok(); }
       if(P === "refresh"){ if(req.method === "PUT") Object.assign(st.rf, req.body); return {status:200, body:st.rf}; }
@@ -779,6 +792,106 @@
     const w = await boot("view.html");
     await waitFor(() => w.document.getElementById("ll") && w.document.getElementById("ll").textContent, 6000, "月報打開");
     eq(w.document.getElementById("ll").textContent, "function|" + API);
+  });
+
+  /* ---------- 搬家：帳本改成加密（第 4 階段） ---------- */
+  async function rsaPair(){
+    const kp = await crypto.subtle.generateKey({name:"RSA-OAEP", modulusLength:2048, publicExponent:new Uint8Array([1, 0, 1]), hash:"SHA-256"}, true, ["encrypt", "decrypt"]);
+    const pub = L.b64e(new Uint8Array(await crypto.subtle.exportKey("spki", kp.publicKey)));
+    return {pub, kid:await L.pubKid(pub), priv:kp.privateKey};
+  }
+  const rsaOpen = async (priv, w) => new Uint8Array(await crypto.subtle.decrypt({name:"RSA-OAEP"}, priv, L.b64d(w.ct)));
+  const normed = () => Object.assign(ledger(), {trips:[], incomes:[]});
+  const ledgerPuts = () => puts().map(p => Object.keys(p.body).sort().join(","));
+  async function startMigration(w){
+    await waitFor(() => !$(w, "encSheet").hidden, 6000, "加密的對話框");
+    $(w, "encGen").click();
+    await waitFor(() => !$(w, "encStep2").hidden && $(w, "encCode").textContent, 6000, "顯示救援碼");
+  }
+
+  test("E2E 搬家：帳本還沒加密 → 請使用者產生並確認救援碼 → 三份包裝、加密帳本、重新加密舊快照", async () => {
+    resetStorage();
+    const adm = await rsaPair();
+    const snaps = {"2026-11-01":{rev:1, data:ledger({note:"舊快照"})}, "2026-11-02":{rev:2, data:ledger()}};
+    const st = await v2Server({pub:adm.pub, kid:adm.kid, snaps});
+    const w = await boot("index.html"); await ready(w);
+    await startMigration(w);
+    assert(!$(w, "encAdminNote").hidden, "有管理者救援時要說明清楚");
+    eq($(w, "encCode").textContent, REC);
+    // 沒勾「我已經抄下來」、最後 4 碼不對 → 不開始
+    $(w, "encGo").click(); await sleep(150);
+    assert(/抄下來/.test($(w, "encMsg").textContent)); eq(st.wrap_pw, null, "還沒開始");
+    $(w, "encSaved").checked = true; $(w, "encLast4").value = "0000"; $(w, "encGo").click(); await sleep(150);
+    assert(/最後 4 碼不對/.test($(w, "encMsg").textContent)); eq(st.wrap_pw, null);
+    $(w, "encLast4").value = REC.slice(-4).toLowerCase(); $(w, "encGo").click();
+    await waitFor(() => $(w, "encSheet").hidden && st.enc, 15000, "加密完成");
+    const dek = await L.unwrapDek(st.wrap_pw, TEST_PW, TEST_USER, "pw");
+    eq(L.b64e(await L.unwrapDek(st.wrap_rec, REC, TEST_USER, "rec")), L.b64e(dek), "救援碼解得開同一把資料金鑰");
+    eq([st.wrap_admin.alg, st.wrap_admin.kid], ["RSA-OAEP-256", adm.kid]);
+    eq(L.b64e(await rsaOpen(adm.priv, st.wrap_admin)), L.b64e(dek), "管理者私鑰解得開同一把資料金鑰");
+    eq(await L.decLedger(dek, st.enc, TEST_USER), normed(), "加密後的帳本內容和原本一樣（app 存檔照舊會補上空的 trips、incomes）");
+    eq(ledgerPuts(), ["base,enc"], "帳本只寫入一次，而且是密文");
+    await waitFor(() => Object.values(st.snaps).every(s => s.enc), 8000, "舊快照重新加密");
+    eq(await L.decLedger(dek, st.snaps["2026-11-01"].enc, TEST_USER), ledger({note:"舊快照"}));
+    assert(Object.values(st.snaps).every(s => !("data" in s)), "快照不留明文");
+    // 之後新增一筆：照常只送密文
+    await addExpense(w, 77);
+    await waitFor(() => puts().length === 2, 6000, "之後的存檔");
+    eq(ledgerPuts()[1], "base,enc"); eq((await L.decLedger(dek, st.enc, TEST_USER)).records.length, 2);
+  });
+
+  test("E2E 搬家：按「稍後再說」→ 什麼都不寫，帳本照舊是明文、可以照常記帳", async () => {
+    resetStorage();
+    const st = await v2Server();
+    const w = await boot("index.html"); await ready(w);
+    await waitFor(() => !$(w, "encSheet").hidden, 6000, "加密的對話框");
+    $(w, "encLater").click();
+    await addExpense(w, 50);
+    await waitFor(() => puts().length === 1, 6000, "存檔");
+    eq(ledgerPuts(), ["base,data"]); eq([st.wrap_pw, st.enc], [null, undefined]);
+  });
+
+  test("E2E 搬家：上次做到一半（已有 wrap_pw、wrap_rec，帳本還是明文）→ 登入後自動接著加密，不再問救援碼", async () => {
+    resetStorage();
+    const st = await v2Server({resume:true});
+    const w = await boot("index.html"); await ready(w);
+    await waitFor(() => st.enc, 10000, "接著加密");
+    assert($(w, "encSheet").hidden, "不再跳出對話框");
+    eq(await L.decLedger(st.dek, st.enc, TEST_USER), normed(), "用原本那把資料金鑰加密");
+    eq(SERVER.calls.filter(c => c.query.action === "recovery").length, 0, "沒有重新產生救援碼");
+  });
+
+  test("E2E 搬家：別台裝置剛好先存了資料金鑰（409 wrap_exists）→ 改用伺服器上那把，帳本用它加密", async () => {
+    resetStorage();
+    const other = L.newDek();
+    const st = await v2Server({racePw:await L.wrapDek(other, TEST_PW, TEST_USER, "pw")});
+    const w = await boot("index.html"); await ready(w);
+    await startMigration(w);
+    $(w, "encSaved").checked = true; $(w, "encLast4").value = REC.slice(-4); $(w, "encGo").click();
+    await waitFor(() => st.enc, 15000, "加密完成");
+    eq(await L.decLedger(other, st.enc, TEST_USER), normed(), "用伺服器上那把（別台裝置的）加密");
+    eq(L.b64e(await L.unwrapDek(st.wrap_rec, REC, TEST_USER, "rec")), L.b64e(other), "救援碼包的也是同一把");
+  });
+
+  test("E2E 搬家：已經加密的帳號、管理者公鑰新設定 → 自動補包 wrap_admin；明文快照重新加密，已加密的不動", async () => {
+    resetStorage();
+    const adm = await rsaPair();
+    const pre = await L.encLedger(L.newDek(), ledger(), TEST_USER);   // 一份別把金鑰加密的快照：不能被動到
+    const st = await v2Server({encrypted:true, pub:adm.pub, kid:adm.kid, snaps:{"2026-11-01":{rev:1, data:ledger()}, "2026-11-02":{rev:2, enc:pre}}});
+    const w = await boot("index.html"); await ready(w);
+    await waitFor(() => st.wrap_admin && st.snaps["2026-11-01"].enc, 8000, "補包、重新加密");
+    eq(L.b64e(await rsaOpen(adm.priv, st.wrap_admin)), L.b64e(st.dek));
+    eq(await L.decLedger(st.dek, st.snaps["2026-11-01"].enc, TEST_USER), ledger());
+    eq(st.snaps["2026-11-02"].enc, pre, "已加密的快照沒有被換掉");
+    assert($(w, "encSheet").hidden, "已加密的帳號不會跳出對話框");
+  });
+
+  test("E2E 搬家：舊版伺服器 → 不會跳出加密對話框", async () => {
+    resetStorage();
+    server(getLedger(5, ledger()));
+    const w = await boot("index.html"); await ready(w);
+    await sleep(400);
+    assert($(w, "encSheet").hidden);
   });
 
   window.__e2eCleanup =() => { if(frame) frame.remove(); Object.keys(localStorage).filter(k => /^(cf-|ll-)/.test(k)).forEach(k => localStorage.removeItem(k));

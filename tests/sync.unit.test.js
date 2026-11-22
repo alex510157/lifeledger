@@ -507,6 +507,19 @@
     eq(await S.probeV2(fakeFetch(() => ({status:200, body:{rev:0, data:null}})).f, "https://x"), false);
     eq(await S.probeV2(async () => { throw new TypeError("offline"); }, "https://x"), null);
   });
+  /* ---------- 管理者救援（wrap_admin） ---------- */
+  test("管理者救援：wrapAdmin 用 RSA-OAEP（SHA-256）包資料金鑰，私鑰解得開；kid = sha256(公鑰 base64) 前 16 碼", async () => {
+    const kp = await crypto.subtle.generateKey({name:"RSA-OAEP", modulusLength:2048, publicExponent:new Uint8Array([1, 0, 1]), hash:"SHA-256"}, true, ["encrypt", "decrypt"]);
+    const pub = S.b64e(new Uint8Array(await crypto.subtle.exportKey("spki", kp.publicKey)));
+    const dek = S.newDek(), w = await S.wrapAdmin(dek, pub);
+    eq([w.v, w.alg, /^[0-9a-f]{16}$/.test(w.kid)], [1, "RSA-OAEP-256", true]);
+    const h = new Uint8Array(await crypto.subtle.digest("SHA-256", new TextEncoder().encode(pub)));
+    eq(w.kid, Array.from(h.slice(0, 8), b => b.toString(16).padStart(2, "0")).join(""));
+    eq(S.b64e(new Uint8Array(await crypto.subtle.decrypt({name:"RSA-OAEP"}, kp.privateKey, S.b64d(w.ct)))), S.b64e(dek));
+  });
+  test("管理者救援：kid 和伺服器、電腦端用同一套算法（固定的測試向量）", async () => {
+    eq(await S.pubKid("MIIBIjAN"), "b5e6e01248876daf", "和 Python hashlib.sha256(b\"MIIBIjAN\").hexdigest()[:16] 相同");
+  });
   /* ---------- 月報、生活帳本頁的帳本讀寫（pageLedger） ---------- */
   async function encFixture(user, pw){
     const dek = S.newDek();

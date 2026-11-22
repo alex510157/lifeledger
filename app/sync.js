@@ -272,6 +272,19 @@
     return d;
   }
 
+  /* ====== 管理者救援（wrap_admin）======
+   * 伺服器的 ADMIN_RECOVERY_PUBKEY 是 RSA 公鑰（SPKI DER 的 base64）；用它把資料金鑰加密（RSA-OAEP、SHA-256），私鑰只在管理者電腦上
+   * kid = sha256(公鑰的 base64 字串) 的前 16 個 hex 字（和伺服器、電腦端 admin_recover.py 一樣） */
+  async function pubKid(pub){
+    const h = new Uint8Array(await subtle().digest("SHA-256", utf8(pub)));
+    return Array.from(h.subarray(0, 8), b => b.toString(16).padStart(2, "0")).join("");
+  }
+  async function wrapAdmin(dek, pub){
+    const k = await subtle().importKey("spki", b64d(pub), {name:"RSA-OAEP", hash:"SHA-256"}, false, ["encrypt"]);
+    const ct = new Uint8Array(await subtle().encrypt({name:"RSA-OAEP"}, k, dek));
+    return {v:1, alg:"RSA-OAEP-256", kid:await pubKid(pub), ct:b64e(ct)};
+  }
+
   /* ====== 帶登入資料的請求 ======
    * c = {user, pw, lk, v2, legacy, lkOk}：同一個物件在整個頁面重複使用（會記下 legacy、lkOk）
    *  - v2：伺服器支援登入金鑰（probeV2）。舊伺服器不認得 x-cf-kind，送登入金鑰會被當成密碼錯、累計錯誤次數，所以只送密碼
@@ -343,7 +356,7 @@
 
   const LLSync = {SyncError, isLedger, isRev, checkPull, usableConflict, mutate, mergeCards, stable,
                   credLoad, credSave, credSaveLk, cacheStore, credDropPw, credClear,
-                  normUser, normCode, loginKey, newDek, wrapDek, unwrapDek, encLedger, decLedger, probeV2, authFetch, pageLedger, b64e, b64d};
+                  normUser, normCode, loginKey, newDek, wrapDek, unwrapDek, encLedger, decLedger, probeV2, authFetch, pageLedger, pubKid, wrapAdmin, b64e, b64d};
   if(typeof module !== "undefined" && module.exports) module.exports = LLSync;
   else root.LLSync = LLSync;
 })(typeof window !== "undefined" ? window : globalThis);
