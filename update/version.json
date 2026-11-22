@@ -1,8 +1,14 @@
 {
- "version": "1123",
- "build": 202611230011,
- "file": "LifeLedger_update_v1123.zip",
- "size": 439400,
- "sha256": "f773cbb47d77396ef16e47d826f500c14f3e0ceba4587ab19d90eafbbe561216",
- "date": "2026-11-23 00:11"
+ "version": "1123b",
+ "build": 202611230037,
+ "file": "LifeLedger_update_v1123b.zip",
+ "size": 444578,
+ "sha256": "884dc15cfa84cff9322e6e90f392a171e63f9322d1a31e3db7edf3b1096a0676",
+ "notes": [
+  "新介面：粉彩卡片、彩色圖示",
+  "5 種主題可切換（右上角 🎨）",
+  "新增隨手記按鈕",
+  "有新版或自動更新完會顯示通知"
+ ],
+ "date": "2026-11-23 00:37"
 }
