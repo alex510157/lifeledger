@@ -507,4 +507,53 @@
     eq(await S.probeV2(fakeFetch(() => ({status:200, body:{rev:0, data:null}})).f, "https://x"), false);
     eq(await S.probeV2(async () => { throw new TypeError("offline"); }, "https://x"), null);
   });
+  /* ---------- 月報、生活帳本頁的帳本讀寫（pageLedger） ---------- */
+  async function encFixture(user, pw){
+    const dek = S.newDek();
+    return {dek, wrap_pw:await S.wrapDek(dek, pw, user, "pw"), enc:await S.encLedger(dek, ledger(), user)};
+  }
+  test("月報頁讀寫：明文帳本、有存登入金鑰 → 只送登入金鑰，GET 回明文、PUT 照舊送 data", async () => {
+    const ls = mem({"cf-user":"u", "cf-pw":"PW", "cf-lk":JSON.stringify({u:"u", lk:"LK"})});
+    const {f, calls} = fakeFetch(c => c.method === "GET" ? {status:200, body:{rev:3, data:ledger()}} : {status:200, body:{rev:4}});
+    const api = S.pageLedger(f, "https://x", ls, mem());
+    const g = await api("GET"); eq([g.status, g.j.rev, g.j.data.records.length], [200, 3, 1]);
+    const p = await api("PUT", {base:3, data:ledger({note:"x"})}); eq(p.j.rev, 4);
+    eq(calls.map(c => [c.method, c.key, c.kind]), [["GET", "LK", "lk"], ["PUT", "LK", "lk"]]);
+    eq(Object.keys(calls[1].body).sort(), ["base", "data"]);
+  });
+  test("月報頁讀寫：沒有登入金鑰（舊版網站登入的）→ 照舊送密碼", async () => {
+    const {f, calls} = fakeFetch(() => ({status:200, body:{rev:1, data:ledger()}}));
+    await S.pageLedger(f, "https://x", mem({"cf-user":"u"}), mem({"cf-pw":"SPW"}))("GET");
+    eq(calls.map(c => [c.key, c.kind]), [["SPW", null]], "密碼只在 sessionStorage 也讀得到");
+  });
+  test("月報頁讀寫：加密帳本 → GET 在頁面裡解開；PUT 只送密文，解開是修改後的帳本", async () => {
+    const fx = await encFixture("u", "PW");
+    let saved = null;
+    const {f, calls} = fakeFetch(c => /action=keys/.test(c.url) ? {status:200, body:{wrap_pw:fx.wrap_pw}}
+      : c.method === "GET" ? {status:200, body:{rev:7, enc:fx.enc}} : (saved = c.body, {status:200, body:{rev:8}}));
+    const api = S.pageLedger(f, "https://x", mem({"cf-user":"u", "cf-pw":"PW", "cf-lk":JSON.stringify({u:"u", lk:"LK"})}), mem());
+    const g = await api("GET"); eq(g.j.data, ledger());
+    const d = g.j.data; d.paidMarks = [{k:"h1", r:1, t:"2026-11-22"}];
+    eq((await api("PUT", {base:7, data:d})).status, 200);
+    eq(Object.keys(saved).sort(), ["base", "enc"], "只送密文");
+    eq((await S.decLedger(fx.dek, saved.enc, "u")).paidMarks, [{k:"h1", r:1, t:"2026-11-22"}]);
+    assert(calls.every(c => c.kind === "lk"), "全部用登入金鑰");
+  });
+  test("月報頁讀寫：加密帳本 409（附最新密文）→ 解開成 data，頁面可以照舊重試", async () => {
+    const fx = await encFixture("u", "PW"), newer = await S.encLedger(fx.dek, ledger({note:"別台"}), "u");
+    const {f} = fakeFetch(c => /action=keys/.test(c.url) ? {status:200, body:{wrap_pw:fx.wrap_pw}}
+      : c.method === "GET" ? {status:200, body:{rev:7, enc:fx.enc}} : {status:409, body:{error:"conflict", rev:8, enc:newer}});
+    const api = S.pageLedger(f, "https://x", mem({"cf-user":"u", "cf-pw":"PW"}), mem());
+    await api("GET");
+    const p = await api("PUT", {base:7, data:ledger()});
+    eq([p.status, p.j.rev, p.j.data.note], [409, 8, "別台"]);
+  });
+  test("月報頁讀寫：資料金鑰解不開這本帳 → GET 丟錯；之後的 PUT 不送出（不會用錯的金鑰蓋掉帳本）", async () => {
+    const fx = await encFixture("u", "PW"), wrongWrap = await S.wrapDek(S.newDek(), "PW", "u", "pw");
+    const {f, calls} = fakeFetch(c => /action=keys/.test(c.url) ? {status:200, body:{wrap_pw:wrongWrap}} : {status:200, body:{rev:7, enc:fx.enc}});
+    const api = S.pageLedger(f, "https://x", mem({"cf-user":"u", "cf-pw":"PW"}), mem());
+    await rejects(api("GET"), e => eq(e.code, "decrypt_failed"));
+    await rejects(api("PUT", {base:7, data:ledger()}), e => eq(e.code, "key_unverified"));
+    eq(calls.filter(c => c.method === "PUT").length, 0, "沒有送出任何寫入");
+  });
 })();

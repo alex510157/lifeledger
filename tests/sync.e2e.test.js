@@ -27,6 +27,8 @@
   };
 
   function resetStorage(extra){
+    // 上一個測試的頁面要先關掉：它還在背景跑的話，可能在這裡清完之後又寫入 localStorage
+    if(frame){ frame.remove(); frame = null; }
     Object.keys(localStorage).filter(k => /^(cf-|ll-)/.test(k)).forEach(k => localStorage.removeItem(k));
     Object.keys(sessionStorage).filter(k => /^cf-/.test(k)).forEach(k => sessionStorage.removeItem(k));
     localStorage.setItem("cf-user", TEST_USER); localStorage.setItem("cf-pw", TEST_PW); localStorage.setItem("cf-page", "rec");
@@ -339,7 +341,8 @@
     server(req => base(req) || (req.method === "PUT" ? {status:200, body:{rev:6}} : null));
     const w = await boot("index.html"); await ready(w); await openCards(w);
     renameCard(w, "c2", "卡二改"); $(w, "cardsSave").click();
-    await waitFor(() => cache() && cache().rev === 6, 4000, "存檔完成");
+    try{ await waitFor(() => cache() && cache().rev === 6, 4000, "存檔完成"); }
+    catch(e){ throw new Error(e.message + "｜toast=" + $(w, "toast").textContent + "｜banner=" + $(w, "banner").textContent + "｜puts=" + puts().length + "｜cache rev=" + (cache() && cache().rev)); }
     eq(puts().length, 1);
     eq(puts()[0].body.data.cards.map(c => c.name), ["卡一", "卡二改"]);
   });
@@ -766,6 +769,16 @@
     await waitFor(() => rf(w).classList.contains("busy"), 4000, "更新中");
     eq(st.puts, 0, "不寫帳本");
     others().forEach(c => eq([c.kind, c.key], ["lk", st.lk], "月報頁和切換列都只送登入金鑰：" + JSON.stringify(c.query)));
+  });
+
+  test("E2E 月報頁：打開的月報裡可以用 LLSync.pageLedger（頁面裡勾代墊、改分類用）", async () => {
+    resetStorage();
+    const blob = await encBlob(TEST_PW, "<!doctype html><html><head><title>t</title></head><body><p id='rpt'>測試月報</p><p id='ll'></p><script>document.getElementById('ll').textContent=(window.LLSync&&typeof LLSync.pageLedger)+'|'+(window.LL_ONLINE&&window.LL_ONLINE.api)<\/script></body></html>");
+    server(req => req.path === "/api/ledger" && req.query.page === "report" ? {status:200, body:{blob, savedAt:""}}
+      : (req.path === "/api/ledger" && req.method === "GET" ? {status:200, body:{rev:3, data:ledger()}} : null));
+    const w = await boot("view.html");
+    await waitFor(() => w.document.getElementById("ll") && w.document.getElementById("ll").textContent, 6000, "月報打開");
+    eq(w.document.getElementById("ll").textContent, "function|" + API);
   });
 
   window.__e2eCleanup =() => { if(frame) frame.remove(); Object.keys(localStorage).filter(k => /^(cf-|ll-)/.test(k)).forEach(k => localStorage.removeItem(k));
