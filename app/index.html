@@ -241,6 +241,8 @@ a.lnk{color:var(--focus)}
 .tripbox{display:flex;flex-direction:column;gap:8px;padding:10px 12px;border-radius:10px;background:var(--surface2);border:1px solid var(--line)}
 .tripline{display:flex;align-items:center;gap:10px;flex-wrap:wrap}
 .tripline .inp{flex:1;min-width:140px}
+.encstep{display:flex;flex-direction:column;gap:10px}
+.enccode{font:700 22px/1.4 ui-monospace,SFMono-Regular,Consolas,monospace;letter-spacing:.06em;user-select:all;background:var(--surface2);border-radius:8px;padding:8px 12px;text-align:center}
 .chk{display:flex;gap:8px;align-items:center;font-size:13px;color:var(--ink2)}
 .chk input{width:18px;height:18px}
 .tkpi{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:8px}
@@ -606,6 +608,25 @@ html.nfbadge #entry .actions,html.nfbadge #incEntry .incbtn{bottom:calc(70px + v
       <div id="updList" class="updlist"></div>
       <div class="exrow"><button class="btn primary" id="updApply" type="button">套用勾選的更新</button><button class="btn ghost" id="updPick" type="button">看資料庫其他卡</button></div>
       <p class="hint">套用會更新回饋 %、加碼上限、每期上限與限定分類；卡名、結帳日、卡號、通路額度池都不會動。你自己改過的數字會被資料庫的值取代，不想換的請取消勾選。</p>
+    </section>
+  </div>
+  <div class="sheetbg" id="encSheet" hidden>
+    <section class="sheet" role="dialog" aria-modal="true" aria-labelledby="encTitle">
+      <h2><span id="encTitle">把雲端帳本加密</span><button class="ibtn" id="encLater" type="button">稍後再說</button></h2>
+      <div id="encStep1" class="encstep">
+        <p>加密之後，雲端只存密文：只有知道你的密碼（或救援碼）的人解得開，Netlify、能進網站後台的人都看不到你的帳。</p>
+        <p class="hint">開始前要先產生一組<b>新的救援碼</b>：忘記密碼時要靠它解開帳本，一定要抄下來或截圖存好。產生之後，舊的救援碼就失效。</p>
+        <p class="warnbox" id="encAdminNote" hidden>這個網站有設定「管理者救援」：你的密碼和救援碼都忘記時，網站管理者可以用他電腦上的私鑰幫你救回資料。這也代表管理者技術上看得到你的帳。</p>
+        <button class="btn primary" id="encGen" type="button">產生救援碼</button>
+      </div>
+      <div id="encStep2" class="encstep" hidden>
+        <p>你的新救援碼（只會顯示這一次）：</p>
+        <p class="enccode" id="encCode"></p>
+        <label class="chk"><input type="checkbox" id="encSaved"> 我已經抄下來或截圖存好了</label>
+        <input id="encLast4" class="inp" maxlength="4" placeholder="輸入救援碼最後 4 碼確認" autocomplete="off" autocapitalize="characters">
+        <button class="btn primary" id="encGo" type="button">開始加密</button>
+      </div>
+      <p class="hint" id="encMsg" role="status"></p>
     </section>
   </div>
   <div class="sheetbg" id="vaultSheet" hidden>
@@ -2085,6 +2106,108 @@ html.nfbadge #entry .actions,html.nfbadge #incEntry .incbtn{bottom:calc(70px + v
     const a=await acctApi("changepw","POST",body); if(!a.ok) return toast(a.j.error||"改密碼失敗",true);
     PW=a1; LK=body.newLoginKey||null; AUTH.legacy=false; AUTH.lkOk=false; AUTH.lkSaved=false;   // 資料金鑰和帳本沒有變（DEK、ENC 留著用）
     LLSync.credSave(LS, SS, USER, a1, REMEMBER); $("npw1").value=$("npw2").value=""; toast("密碼已改好。記得電腦的設定精靈【0b】也要改成新密碼"); });
+  /* ====== 把雲端帳本搬成加密（每個帳號第一次用新版登入時；見 cardflow-ledger docs/encryption.md） ======
+   * 順序（每一步都可以中斷，下次登入接著做）：
+   *  1. 產生新救援碼，使用者確認抄下來（舊救援碼沒有保管資料金鑰，所以一定要換新的）
+   *  2. 產生資料金鑰，用密碼包好存到伺服器（wrap_pw）；再讀回來確認解開是同一把
+   *  3. 用救援碼包一份（wrap_rec）；網站有管理者救援公鑰就再包一份（wrap_admin）
+   *  4. 把最新的帳本加密存回去（409 照舊用最新的重套），再從伺服器讀回來確認解得開
+   *  5. 背景把舊的每日快照逐一重新加密 */
+  let PUB;   // 管理者救援公鑰 {pubkey, kid}；沒設定是 null；undefined = 還沒問過
+  async function adminPub(){
+    if(PUB !== undefined) return PUB;
+    try{ const r=await F(LLAPI+"/api/ledger?action=pubkey",{cache:"no-store"}); const j=await r.json();
+      PUB = j && j.pubkey ? j : null;
+      if(PUB && await LLSync.pubKid(PUB.pubkey)!==PUB.kid) PUB=null;   // 代號對不起來就不用
+    }catch(e){ return null; }
+    return PUB;
+  }
+  // 管理者公鑰換過、或還沒包過：用目前的公鑰補包一份（只在資料金鑰已經確認可以用時）
+  async function wrapAdminIfNeeded(adminKid){
+    const p=await adminPub(); if(!p || !DEK || !DEKOK || adminKid===p.kid) return;
+    try{ await acctApi("keys","PUT",{wrap_admin:await LLSync.wrapAdmin(DEK,p.pubkey)}); }catch(e){}
+  }
+  let ENC_CODE=null, encChecked=false, snapDone=false;
+  async function encCheck(){   // start() 讀到帳本之後呼叫
+    if(encChecked || !AUTH.v2 || !LOADED) return; encChecked=true;
+    try{
+      const k=await acctApi("keys","GET"); if(!k.ok) return;
+      if(ENC){ await wrapAdminIfNeeded(k.j.adminKid); reencryptSnapshots(); return; }
+      if(k.j.wrap_pw && k.j.hasRecWrap){ await runMigration(null); return; }   // 上次做到一半（救援碼已經確認過）：接著做
+      openEncSheet();
+    }catch(e){}
+  }
+  async function openEncSheet(){
+    ENC_CODE=null; $("encStep1").hidden=false; $("encStep2").hidden=true; $("encMsg").textContent="";
+    $("encSaved").checked=false; $("encLast4").value=""; $("encAdminNote").hidden=!(await adminPub());
+    $("encSheet").hidden=false;
+  }
+  $("encLater").addEventListener("click",()=>{ $("encSheet").hidden=true;
+    toast(ENC_CODE ? "剛產生的救援碼已經生效（舊的失效了），請記得存好。下次登入會再請你完成加密" : "下次登入會再提醒你加密帳本"); });
+  $("encGen").addEventListener("click",async()=>{
+    $("encGen").disabled=true; $("encMsg").textContent="";
+    try{ const a=await acctApi("recovery","POST"); if(!a.ok) throw new Error(a.j.error||"產生失敗（"+a.status+"）");
+      ENC_CODE=a.j.code; $("encCode").textContent=ENC_CODE; $("encStep1").hidden=true; $("encStep2").hidden=false; renderSec();
+    }catch(e){ $("encMsg").textContent="沒有產生救援碼："+((e&&e.message)||"網路有問題"); }
+    finally{ $("encGen").disabled=false; }
+  });
+  $("encGo").addEventListener("click",async()=>{
+    if(!ENC_CODE) return;
+    if(!$("encSaved").checked){ $("encMsg").textContent="請先把救援碼抄下來或截圖，再勾「我已經抄下來」"; return; }
+    if(LLSync.normCode($("encLast4").value)!==LLSync.normCode(ENC_CODE).slice(-4)){ $("encMsg").textContent="最後 4 碼不對，請對照你抄下來的救援碼"; return; }
+    $("encGo").disabled=true; $("encMsg").textContent="加密中…（要算一下，約幾秒）";
+    try{ await runMigration(ENC_CODE); }finally{ $("encGo").disabled=false; }
+  });
+  async function runMigration(code){
+    busy(true);
+    try{
+      let k=await acctApi("keys","GET"); if(!k.ok) throw new Error(k.j.error||"讀不到資料金鑰（"+k.status+"）");
+      let dek;
+      if(k.j.wrap_pw) dek=await LLSync.unwrapDek(k.j.wrap_pw,PW,USER,"pw");
+      else{
+        dek=LLSync.newDek();
+        const w=await acctApi("keys","PUT",{wrap_pw:await LLSync.wrapDek(dek,PW,USER,"pw")});
+        if(w.status===409){ k=await acctApi("keys","GET"); dek=await LLSync.unwrapDek(k.j.wrap_pw,PW,USER,"pw"); }   // 別台裝置剛好先存了：用它的
+        else if(!w.ok) throw new Error(w.j.error||"存資料金鑰失敗（"+w.status+"）");
+      }
+      // 伺服器上存的那份解開必須是同一把（之後就靠它解帳本）
+      k=await acctApi("keys","GET");
+      if(!k.ok || !k.j.wrap_pw || LLSync.b64e(await LLSync.unwrapDek(k.j.wrap_pw,PW,USER,"pw"))!==LLSync.b64e(dek))
+        throw new Error("伺服器上的資料金鑰和這台裝置的不一樣，這次沒有加密");
+      if(code){ const r=await acctApi("keys","PUT",{wrap_rec:await LLSync.wrapDek(dek,code,USER,"rec")}); if(!r.ok) throw new Error(r.j.error||"存救援碼保管的資料金鑰失敗（"+r.status+"）"); }
+      else if(!k.j.hasRecWrap) throw new Error("還沒有救援碼保管的資料金鑰");
+      DEK=dek; DEKOK=true;
+      await wrapAdminIfNeeded(k.j.adminKid);
+      ENC=true; await mutate(()=>{});            // 最新的帳本加密存回去
+      DEK=null; DEKOK=false; await pull();       // 從伺服器重新讀：用伺服器上的 wrap_pw 解開、解開帳本，確認真的讀得回來
+      norm(); LOADED=true; cacheSave(); renderAll(); setSync(true);
+      $("encSheet").hidden=true; ENC_CODE=null;
+      toast("雲端帳本已經加密了。舊的每日快照會在背景重新加密");
+      reencryptSnapshots();
+      return true;
+    }catch(e){
+      if(e&&e.auth){ $("encSheet").hidden=true; askPw("密碼已變更，請重新輸入。"); return false; }
+      const m="這次沒有加密完成："+((e&&e.message)||"網路有問題")+"（帳本沒有被改動，可以再按一次）";
+      $("encMsg").textContent=m; if($("encSheet").hidden) banner("⚠ "+m);
+      return false;
+    }finally{ busy(false); }
+  }
+  // 舊的每日快照：明文的逐一在這台裝置加密後換回去（解得回同樣的內容才換；已加密的伺服器不會讓人換掉）
+  async function reencryptSnapshots(){
+    if(snapDone || !ENC || !DEKOK || !DEK) return; snapDone=true;
+    try{
+      const l=await acctApi("snapshots","GET"); if(!l.ok || !Array.isArray(l.j.dates)) return;
+      let n=0;
+      for(const d of l.j.dates){
+        const q="snapshot&date="+encodeURIComponent(d);
+        const g=await acctApi(q,"GET"); if(!g.ok || !g.j || g.j.enc || !LLSync.isLedger(g.j.data)) continue;
+        const enc=await LLSync.encLedger(DEK,g.j.data,USER);
+        if(LLSync.stable(await LLSync.decLedger(DEK,enc,USER))!==LLSync.stable(g.j.data)) continue;
+        const p=await acctApi(q,"PUT",{rev:g.j.rev,enc}); if(p.ok) n++;
+      }
+      if(n) toast("已重新加密 "+n+" 份舊的每日快照");
+    }catch(e){}
+  }
   $("depSave").addEventListener("click",()=>{
     const m=$("depMonth").value; if(!/^\d{4}-\d{2}$/.test(m)) return toast("先選月份",true);
     const banks=$("depBanks").value.split(/[,，、]/).map(x=>x.trim()).filter(Boolean);
@@ -2177,6 +2300,7 @@ html.nfbadge #entry .actions,html.nfbadge #incEntry .incbtn{bottom:calc(70px + v
       await Promise.all([pull({allowEmpty:cs==="none"}), loadCatalog()]);
       if(!D){ D = seed(); norm(); LOADED = true; await mutate(()=>{}); }
       norm(); LOADED = true; cacheSave(); renderAll(); setSync(true);
+      encCheck();   // 新版網站：帳本還沒加密就請使用者加密（見 runMigration）；已加密就補包管理者金鑰、重新加密舊快照
     }catch(e){
       if(e&&e.auth){ PW=null; LK=null; authReset(); LLSync.credDropPw(LS, SS); askPw(e.msg||"帳號或密碼不對，請再試一次。"); }
       else { setSync(false, "無法連線雲端："+((e&&e.message)||"請檢查網路")); if(e&&e.code) banner("⚠ "+e.message); }
@@ -2211,7 +2335,7 @@ html.nfbadge #entry .actions,html.nfbadge #incEntry .incbtn{bottom:calc(70px + v
       finally{ $("pwBtn").disabled=false; }
     }
     // 登入：照「記住這台裝置」存密碼；兩邊的舊帳本快取都清掉（可能是別的帳號的）
-    USER=u; PW=v; LK=null; authReset(); REMEMBER=$("remember").checked; LLSync.credClear(LS, SS); LLSync.credSave(LS, SS, u, v, REMEMBER);
+    USER=u; PW=v; LK=null; authReset(); encChecked=false; snapDone=false; REMEMBER=$("remember").checked; LLSync.credClear(LS, SS); LLSync.credSave(LS, SS, u, v, REMEMBER);
     start();
   });
   $("pw").addEventListener("keydown",e=>{ if(e.key==="Enter") $("pwBtn").click(); });
@@ -2250,7 +2374,7 @@ html.nfbadge #entry .actions,html.nfbadge #incEntry .incbtn{bottom:calc(70px + v
   $("remember").checked = REMEMBER;
   if(/[?&]join\b/.test(location.search) && !PW) setMode(true);
   $("syncBtn").addEventListener("click",()=>refresh());
-  $("forgetBtn").addEventListener("click",()=>{ LLSync.credClear(LS, SS); PW=null; LK=null; authReset(); D=null; setMode(false); askPw("已登出這台裝置。"); });
+  $("forgetBtn").addEventListener("click",()=>{ LLSync.credClear(LS, SS); PW=null; LK=null; authReset(); encChecked=false; snapDone=false; D=null; setMode(false); askPw("已登出這台裝置。"); });
   document.addEventListener("visibilitychange",()=>{ if(!document.hidden) refresh(); });
   setInterval(refresh, 60000);
   if(PW && USER) start(); else askPw("");
