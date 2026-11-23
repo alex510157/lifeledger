@@ -26,9 +26,6 @@ button{width:100%;margin-top:16px;font:inherit;font-weight:700;padding:11px;bord
 .spin{display:inline-block;width:16px;height:16px;border:2px solid var(--line);border-top-color:var(--gold);border-radius:50%;animation:s 1s linear infinite;vertical-align:-3px;margin-right:8px}
 @keyframes s{to{transform:rotate(360deg)}}
 </style>
-<link rel="manifest" href="manifest.webmanifest">
-<link rel="apple-touch-icon" href="icons/apple-touch-icon.png">
-<script src="palette.js"></script>
 </head>
 <body>
 <div class="box" id="box">
@@ -109,7 +106,7 @@ function llBar(){
   var NAME={report:'月報',book:'生活帳本'}[P];
   document.title='LifeLedger '+NAME; document.getElementById('ttl').textContent=NAME;
   var o=document.getElementById('other'); o.href='view.html?p='+(P==='book'?'report':'book'); o.textContent=(P==='book'?'月報':'生活帳本')+' →';
-  try{var th=localStorage.getItem('ll-theme');if(th&&!(window.LLPalette&&LLPalette.current))document.documentElement.setAttribute('data-theme',th);}catch(e){}
+  try{var th=localStorage.getItem('ll-theme');if(th)document.documentElement.setAttribute('data-theme',th);}catch(e){}
   var $=function(i){return document.getElementById(i)}, msg=$('msg');
   var LS=(function(){try{return window.localStorage}catch(e){return null}})(), SS=(function(){try{return window.sessionStorage}catch(e){return null}})();
   var CR=LLSync.credLoad(LS,SS);   /* 記住這台裝置：密碼在 localStorage；不記住：在 sessionStorage（關掉分頁就清掉） */
@@ -137,13 +134,11 @@ function llBar(){
       var pt=await crypto.subtle.decrypt({name:'AES-GCM',iv:b64(B.iv)},k,b64(B.ct));
       if(B.gz){ var ds=new Blob([pt]).stream().pipeThrough(new DecompressionStream('gzip')); html=await new Response(ds).text(); }
       else html=new TextDecoder().decode(pt);
-    }catch(e){ $('f').hidden=false; return err('登入成功，但這份內容是用舊密碼加密的：剛改過或重設過密碼的話，請在電腦上打開 LifeLedger →「⚙️ 設定 → 隨手記帳號」填新密碼、儲存，再按首頁的「立即更新全部帳目」，之後就能用新密碼打開。'); }
+    }catch(e){ $('f').hidden=false; return err('登入成功，但這份內容是用舊密碼加密的：剛改過或重設過密碼的話，請在電腦上雙擊「設定精靈.bat」→【0b】填新密碼，再雙擊「立即更新月報.bat」，之後就能用新密碼打開。'); }
     LLSync.credSave(LS,SS,user,pw,remember);
     if(c.lkOk&&c.lk) LLSync.credSaveLk(LS,SS,user,c.lk,remember);   /* 伺服器接受了這把登入金鑰才存（切換列會用它） */
     /* sync.js 也一起載入：頁面裡勾代墊、改分類時用 LLSync.pageLedger 讀寫帳本（登入金鑰、加密帳本） */
     html=html.replace(/<head([^>]*)>/i,'<head$1><script>window.LL_ONLINE={page:"'+P+'",saved:"'+(j.savedAt||'')+'",api:"'+API+'"};<\/script><script src="sync.js"><\/script>');
-    if(window.LLPalette&&LLPalette.current){ var pc='<style id="ll-theme">'+LLPalette.cssReport(LLPalette.current)+'<\/style><script>document.documentElement.setAttribute("data-theme","'+(LLPalette.dark()?'dark':'light')+'")<\/script>';
-      html=/<\/head>/i.test(html)?html.replace(/<\/head>/i,pc+'</head>'):pc+html; }
     html=html.replace(/<\/body>(?![\s\S]*<\/body>)/i,'<script>('+llBar.toString()+')()<\/script></body>');
     if(!/llBar|ll-sw/.test(html)) html+='<script>('+llBar.toString()+')()<\/script>';
     document.open(); document.write(html); document.close();
