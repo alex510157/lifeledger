@@ -204,6 +204,7 @@ a.lnk{color:var(--focus)}
 @media (max-width:400px){.mon{gap:2px}.mon span{font-size:12px;min-width:0}.mon button{width:26px;padding:0!important}.sharebtn{width:32px;height:32px}.brand small{font-size:8.5px;letter-spacing:.06em}.brand b{font-size:19px}}
 </style>
 <script src="palette.js"></script>
+<script src="qr.js"></script>
 </head>
 <body>
 <style>
@@ -682,6 +683,10 @@ html.nfbadge #entry .actions,html.nfbadge #incEntry .incbtn{bottom:calc(70px + v
     </div>
     <div class="field" id="pwaBox">
       <span class="flabel">📱 放到手機主畫面（像 App 一樣用）</span>
+      <div id="pwaQr" hidden style="display:flex;gap:14px;align-items:center;margin:6px 0 4px">
+        <div id="pwaQrImg" style="background:#fff;border-radius:12px;padding:4px;border:2px solid var(--line);flex:none"></div>
+        <p class="hint" style="margin:0;line-height:1.7">在電腦上看到這一頁嗎？<b>用手機相機掃這個 QR code</b>，就會在手機上打開隨手記，再照下面的步驟加到主畫面。QR code 只有網址，不含你的帳號或資料。</p>
+      </div>
       <div class="deptop" id="pwaInstallRow" hidden><button class="btn" type="button" id="pwaInstall">安裝到主畫面</button></div>
       <p class="hint" id="pwaDone" hidden style="margin:4px 0 0">✓ 已經是 App 模式了。</p>
       <p class="hint" id="pwaHow" style="margin:4px 0 0;line-height:1.7">
@@ -2105,6 +2110,10 @@ html.nfbadge #entry .actions,html.nfbadge #incEntry .incbtn{bottom:calc(70px + v
     if("serviceWorker" in navigator && location.protocol==="https:") navigator.serviceWorker.register("sw.js").catch(()=>{});
     const standalone=matchMedia("(display-mode: standalone)").matches||navigator.standalone===true;
     if(standalone){ $("pwaHow").hidden=true; $("pwaDone").hidden=false; }
+    else if(window.QR && matchMedia("(pointer: fine)").matches && innerWidth>=700){   // 在電腦上：給手機掃的 QR code
+      const L=window.LLPalette, u=location.origin+location.pathname+(L&&L.current?"?theme="+L.current:"");
+      try{ $("pwaQrImg").innerHTML=QR.svg(u,{px:4}); $("pwaQr").hidden=false; }catch(e){}
+    }
     let ev=null; addEventListener("beforeinstallprompt",e=>{ e.preventDefault(); ev=e; $("pwaInstallRow").hidden=false; });
     $("pwaInstall").addEventListener("click",async()=>{ if(!ev) return; ev.prompt(); try{ await ev.userChoice; }catch(e){} ev=null; $("pwaInstallRow").hidden=true; });
     addEventListener("appinstalled",()=>{ $("pwaInstallRow").hidden=true; toast("已加到主畫面 🎉"); });

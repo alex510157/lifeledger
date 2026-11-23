@@ -2,8 +2,8 @@
  * 只快取這個資料夾自己的畫面檔（HTML、JS、圖示），讓 App 打開比較快、沒網路時至少看得到畫面。
  * 永遠先拿網路上最新的；連不上才用快取。
  * 不碰帳本資料：伺服器（/api/…、別的網域）、非 GET 的請求都直接放行，不會被存起來。 */
-const CACHE = 'll-shell-v1';
-const SHELL = ['./', 'index.html', 'view.html', 'sync.js', 'palette.js', 'catalog.json', 'manifest.webmanifest',
+const CACHE = 'll-shell-v2';
+const SHELL = ['./', 'index.html', 'view.html', 'sync.js', 'palette.js', 'qr.js', 'catalog.json', 'manifest.webmanifest',
   'icons/icon-192.png', 'icons/icon-512.png', 'icons/apple-touch-icon.png'];
 
 self.addEventListener('install', e => {
