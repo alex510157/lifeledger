@@ -192,6 +192,16 @@ details.panel[open] summary::after{content:"－"}
 .cap .s b{font-weight:700}
 .cap .s b.ok{color:var(--ok)} .cap .s b.warn{color:var(--warn)} .cap .s b.bad{color:var(--bad)}
 .cap.nocap .t{display:none}
+.cychint{margin-top:6px;font-size:12.5px;line-height:1.5;padding:8px 10px;border-radius:8px;background:var(--surface2);color:var(--ink2);border-left:3px solid var(--line)}
+.cychint.bad{border-left-color:var(--bad);background:color-mix(in srgb,var(--bad) 8%,var(--surface))}.cychint.bad b{color:var(--bad)}
+.cychint.good{border-left-color:var(--ok);background:color-mix(in srgb,var(--ok) 8%,var(--surface))}.cychint.good b{color:var(--ok)}
+.chip .czb{margin-left:5px;font-size:10.5px;font-weight:700;color:var(--bad)}.chip[aria-pressed="true"] .czb{color:#FF9A8B}
+.cyclist{margin:4px 0 12px;border:1px solid var(--line);border-radius:10px;overflow:hidden}
+.cyclist .ch{padding:8px 12px;font-size:13px;font-weight:700;color:var(--ink);background:var(--surface2);display:flex;justify-content:space-between;gap:8px}
+.cyclist .ch small{font-weight:400;color:var(--ink2);font-size:11.5px}
+.cyclist .cr{display:grid;grid-template-columns:auto 1fr auto;align-items:center;gap:10px;padding:8px 12px;border-top:1px solid var(--line);font-size:13px}
+.cyclist .cr .d{font-variant-numeric:tabular-nums;color:var(--ink2)}.cyclist .cr .d b{color:var(--ink)}
+.cyclist .cr .s{font-size:12px;font-weight:700;white-space:nowrap;color:var(--ink2)}.cyclist .cr .s.bad{color:var(--bad)}.cyclist .cr .s.good{color:var(--ok)}
 .cardhint{font-size:12.5px;padding:8px 10px;border-radius:8px;background:var(--surface2);color:var(--ink2)}
 .cardhint b.ok{color:var(--ok)} .cardhint b.warn{color:var(--warn)} .cardhint b.bad{color:var(--bad)}
 .loading{opacity:.55;pointer-events:none}
@@ -465,6 +475,7 @@ html.nfbadge #entry .actions,html.nfbadge #incEntry .incbtn{bottom:calc(70px + v
       <div class="chips" id="cardChips" role="group" aria-labelledby="cardLab"></div>
       <button type="button" class="more" id="chipMore" hidden></button>
       <div class="cardhint" id="cardHint" hidden></div>
+      <div class="cychint" id="cycHint" hidden></div>
     </div>
     <div class="field">
       <span class="flabel" id="catLab">分類</span>
@@ -647,6 +658,7 @@ html.nfbadge #entry .actions,html.nfbadge #incEntry .incbtn{bottom:calc(70px + v
 
   <section class="panel" id="cardsSec" aria-labelledby="cardsTitle" hidden>
     <h2 id="cardsTitle"><span>我的卡片</span><small id="cardsCnt"></small></h2>
+    <div class="cyclist" id="cycList" hidden></div>
     <div class="cardbar">
       <button class="btn ghost" type="button" id="impBtn">⚡ 從我的帳單一鍵匯入</button>
       <button class="btn ghost" type="button" id="pickBtn">＋ 從卡片資料庫加入</button>
@@ -938,6 +950,47 @@ html.nfbadge #entry .actions,html.nfbadge #incEntry .incbtn{bottom:calc(70px + v
       st.append(a,b); r.append(n,v,t,st); box.appendChild(r);
     });
   }
+  /* ---- 結帳日：電腦從各銀行帳單讀出的實際結帳日（卡片設定裡自填的優先）；同一家銀行的卡同一天結帳 ---- */
+  let CYCD={}; try{ CYCD=JSON.parse(localStorage.getItem("cf-cyc")||"{}")||{}; }catch(e){}
+  const bankKey = b => { b=String(b||"").replace(/銀行|商業|國際|股份有限公司|\s/g,""); const A={"中國信託":"中信","國泰世華":"國泰","遠東商":"遠東","遠銀":"遠東","台北富邦":"富邦","臺北富邦":"富邦"}; for(const k in A) if(b.startsWith(k)) return A[k]; return b.slice(0,2); };
+  function cycOf(c){ c=rootOf(c); if(!c || c.bank==="其他") return null; if(c.cycleDay) return {day:+c.cycleDay, src:"自填"}; const x=CYCD[bankKey(c.bank)]; return x&&x.day?{day:+x.day, vary:x.vary||[], src:"帳單"}:null; }
+  function cycNext(day){ const t=new Date(), t0=new Date(t.getFullYear(),t.getMonth(),t.getDate()), dim=(y,m)=>new Date(y,m+1,0).getDate();
+    let d=new Date(t0.getFullYear(),t0.getMonth(),Math.min(day,dim(t0.getFullYear(),t0.getMonth())));
+    if(d<t0) d=new Date(t0.getFullYear(),t0.getMonth()+1,Math.min(day,dim(t0.getFullYear(),t0.getMonth()+1)));
+    const n=Math.round((d-t0)/864e5), pm=new Date(d.getFullYear(),d.getMonth()-1,1), last=new Date(pm.getFullYear(),pm.getMonth(),Math.min(day,dim(pm.getFullYear(),pm.getMonth())));
+    const ago=Math.round((t0-last)/864e5); return {d, n, last, ago, k: n<=3?"bad":(ago<=5?"good":"")}; }
+  const md = d => (d.getMonth()+1)+"/"+d.getDate()+"（"+"日一二三四五六"[d.getDay()]+"）";
+  async function loadCyc(){
+    try{ const r=await af("/api/ledger?page=cards",{cache:"no-store"});
+      if(!r.ok) return; const j=await r.json(); if(!j.blob) return; const o=JSON.parse(await openBlob(j.blob));
+      if(o.cyc && typeof o.cyc==="object"){ CYCD=o.cyc; try{ localStorage.setItem("cf-cyc",JSON.stringify(CYCD)); }catch(e){} renderChips(); renderCycList(); }
+    }catch(e){}
+  }
+  function renderCycHint(card){
+    const h=$("cycHint"), c=cycOf(card); if(!c){ h.hidden=true; return; }
+    const x=cycNext(c.day), bk=rootOf(card).bank; h.className="cychint"+(x.k?" "+x.k:""); h.hidden=false; h.textContent="";
+    const b=document.createElement("b"), sp=document.createElement("span");
+    if(x.k==="bad"){
+      b.textContent="⚠ "+(x.n===0?"今天結帳":x.n+" 天後結帳（"+md(x.d)+"）");
+      const alt=D.cards.filter(k=>!k.parentId && k.id!==rootOf(card).id && cycOf(k)).map(k=>({k,x:cycNext(cycOf(k).day)})).filter(o=>o.x.n>=15 && bankKey(o.k.bank)!==bankKey(bk)).sort((a,b)=>(b.k.fav?1:0)-(a.k.fav?1:0)||b.x.n-a.x.n)[0];
+      sp.textContent="："+bk+" 每月 "+c.day+" 日結帳，現在刷會直接進這期帳單、下個月就要繳。不急的話等結帳後再刷"+(alt?"，或改刷「"+dispName(alt.k)+"」（"+(alt.x.ago===0?"今天剛結帳":alt.x.ago+" 天前剛結帳")+"）":"")+"。";
+    } else if(x.k==="good"){
+      b.textContent="✓ "+md(x.last)+" 剛結帳"; sp.textContent="：現在刷要到 "+md(x.d)+" 結帳才入帳，繳款最晚。";
+    } else { b.textContent=bk+" 每月 "+c.day+" 日結帳"; sp.textContent="・還有 "+x.n+" 天（下次 "+md(x.d)+"）"; }
+    h.append(b,sp);
+    if(c.src==="帳單" && (c.vary||[]).length>1){ const v=document.createElement("small"); v.style.cssText="display:block;opacity:.75;margin-top:2px"; v.textContent="近幾期實際是 "+c.vary[0]+"–"+c.vary[c.vary.length-1]+" 日，遇假日會提前或順延"; h.appendChild(v); }
+  }
+  function renderCycList(){
+    const box=$("cycList"); if(!box) return; box.textContent="";
+    const g=new Map(); D.cards.filter(k=>!k.parentId).forEach(k=>{ const c=cycOf(k); if(!c) return; const key=bankKey(k.bank)+"|"+c.day; const o=g.get(key)||{bank:k.bank,c,n:0}; o.n++; g.set(key,o); });
+    if(!g.size){ box.hidden=true; return; } box.hidden=false;
+    const hd=document.createElement("div"); hd.className="ch"; hd.innerHTML="<span>每月結帳日</span><small>結帳前 3 天先別刷；剛結帳的卡最晚繳</small>"; box.appendChild(hd);
+    [...g.values()].map(o=>Object.assign(o,{x:cycNext(o.c.day)})).sort((a,b)=>a.x.n-b.x.n).forEach(o=>{
+      const r=document.createElement("div"); r.className="cr"; r.appendChild(badge(o.bank));
+      const d=document.createElement("div"); d.className="d"; const bb=document.createElement("b"); bb.textContent="每月 "+o.c.day+" 日"; d.append(bb, document.createTextNode("・下次 "+md(o.x.d)+(o.n>1?"・"+o.n+" 張卡":"")+(o.c.src==="自填"?"・自填":"")));
+      const st=document.createElement("span"); st.className="s "+o.x.k; st.textContent=o.x.k==="bad"?("⚠ "+(o.x.n===0?"今天結帳":o.x.n+" 天後結帳")):o.x.k==="good"?"✓ 剛結帳":"還有 "+o.x.n+" 天";
+      r.append(d,st); box.appendChild(r); });
+  }
   function renderChips(){
     const cc=$("cardChips"); cc.textContent="";
     if(selCard && !D.cards.some(c=>c.id===selCard)) selCard=null;
@@ -955,6 +1008,7 @@ html.nfbadge #entry .actions,html.nfbadge #incEntry .incbtn{bottom:calc(70px + v
     shown.forEach(c=>{
       const b=document.createElement("button"); b.type="button"; b.className="chip"; b.setAttribute("aria-pressed",String(c.id===selCard));
       const d=document.createElement("span"); d.className="dot"; d.style.background=bankColor(c.bank); b.appendChild(d); b.appendChild(document.createTextNode(dispName(c)));
+      const cy=cycOf(c); if(cy){ const x=cycNext(cy.day); if(x.k==="bad"){ const z=document.createElement("small"); z.className="czb"; z.textContent=x.n===0?"今天結帳":x.n+"天後結帳"; b.appendChild(z); b.title=rootOf(c).bank+" 每月 "+cy.day+" 日結帳"; } }
       b.addEventListener("click",()=>{ selCard=c.id; try{localStorage.setItem("cf-lastcard",c.id);}catch(e){} renderChips(); }); cc.appendChild(b);
     });
     const card=D.cards.find(c=>c.id===selCard), h=$("cardHint");
@@ -962,6 +1016,7 @@ html.nfbadge #entry .actions,html.nfbadge #incEntry .incbtn{bottom:calc(70px + v
       const bb=document.createElement("b"); bb.className=lvl(u.pct); bb.textContent=u.left>=0?"回饋額度內還可刷 NT$ "+fmt(u.left):"已超過上限 NT$ "+fmt(-u.left)+"，建議換卡"; h.appendChild(bb);
       if((card.cats||[]).length) h.appendChild(document.createTextNode("（只算 "+card.cats.join("、")+"）")); } else { h.hidden=true; h.textContent=""; }
     if(card && isVaulted(card)){ h.hidden=false; const vb=document.createElement("button"); vb.type="button"; vb.className="vbtn"; vb.textContent="複製16碼"; vb.addEventListener("click",()=>quickCopy(card.id)); h.appendChild(vb); }
+    try{ renderCycHint(card); }catch(e){}
     const kc=$("catChips"); kc.textContent="";
     if(!selCat) selCat=CATS[0];
     CATS.forEach(k=>{ const b=document.createElement("button"); b.type="button"; b.className="chip"; b.setAttribute("aria-pressed",String(k===selCat)); b.textContent=k; b.addEventListener("click",()=>{selCat=k;renderChips();}); kc.appendChild(b); });
@@ -1165,7 +1220,7 @@ html.nfbadge #entry .actions,html.nfbadge #incEntry .incbtn{bottom:calc(70px + v
     setTimeout(()=>$("incAmt").focus(),300);
   }
   function endIncEdit(){ incEditId=null; $("incSave").textContent="記下這筆收入"; $("incCancel").hidden=true; $("incAmt").value=""; $("incNote").value=""; $("incDate").value=TODAY; }
-  function renderAll(){ try{ depRemind(); }catch(e){} try{ recRemind(); }catch(e){} renderInc(); renderPk(); renderSummary(); renderChips(); renderCaps(); renderBreakdown(); renderLedger(); renderTrip(); renderTripRow(); }
+  function renderAll(){ try{ depRemind(); }catch(e){} try{ recRemind(); }catch(e){} renderInc(); renderPk(); renderSummary(); renderChips(); renderCaps(); renderBreakdown(); renderLedger(); renderTrip(); renderTripRow(); try{ renderCycList(); }catch(e){} }
 
   /* ====== 卡片資料庫（大家共用，回饋規則由管理員更新） ====== */
   let CATALOG = {cards:[], updated:null};
@@ -2299,7 +2354,7 @@ html.nfbadge #entry .actions,html.nfbadge #incEntry .incbtn{bottom:calc(70px + v
       // 這台裝置已有帳本（包括格式不對的快取）時，雲端回傳空資料是異常：不建立初始帳本、不覆蓋
       await Promise.all([pull({allowEmpty:cs==="none"}), loadCatalog()]);
       if(!D){ D = seed(); norm(); LOADED = true; await mutate(()=>{}); }
-      norm(); LOADED = true; cacheSave(); renderAll(); setSync(true);
+      norm(); LOADED = true; cacheSave(); renderAll(); setSync(true); loadCyc();
       encCheck();   // 新版網站：帳本還沒加密就請使用者加密（見 runMigration）；已加密就補包管理者金鑰、重新加密舊快照
     }catch(e){
       if(e&&e.auth){ PW=null; LK=null; authReset(); LLSync.credDropPw(LS, SS); askPw(e.msg||"帳號或密碼不對，請再試一次。"); }
