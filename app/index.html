@@ -794,7 +794,7 @@ html.nfbadge #entry .actions,html.nfbadge #incEntry .incbtn{bottom:calc(70px + v
   const KEY = "cardflow-ledger-v1";
   const BANKS = {"台新":"#2A78D6","永豐":"#EB6834","玉山":"#1BAF7A","聯邦":"#C98A00","中信":"#D9608E","星展":"#008300","國泰":"#4A3AA7","富邦":"#0E7C86","遠東":"#1E6F5C","滙豐":"#DB0011",
     "第一":"#0B5FA5","渣打":"#0072AA","凱基":"#3B4A8F","兆豐":"#B5262E","華南":"#C8501E","合庫":"#00694B","彰銀":"#E0457B","上海":"#9C2A3A","元大":"#1D4F91","新光":"#D7282F",
-    "台企":"#005BAC","土銀":"#4E7D2E","臺灣銀行":"#00703C","王道":"#E95513","樂天":"#BF0000","LINE Bank":"#06A94D","將來":"#5A3FD0","安泰":"#004B87","陽信":"#C2185B","美國運通":"#2E77BC","其他":"#6B7686"};
+    "企銀":"#005BAC","土銀":"#4E7D2E","臺銀":"#00703C","王道":"#E95513","樂天":"#BF0000","LINE Bank":"#06A94D","將來":"#5A3FD0","安泰":"#004B87","陽信":"#C2185B","美國運通":"#2E77BC","其他":"#6B7686"};
   const CATS = ["餐飲","超市便利商店","網購","交通停車加油","旅遊住宿","生活繳費","百貨購物","醫療","教育","運動休閒","保險","汽車保養","購車／汽機車","稅款","房貸","其他"];
   const $ = id => document.getElementById(id);
   const fmt = n => Math.round(n).toLocaleString("en-US");
@@ -989,8 +989,8 @@ html.nfbadge #entry .actions,html.nfbadge #incEntry .incbtn{bottom:calc(70px + v
   }
   /* ---- 結帳日：電腦從各銀行帳單讀出的實際結帳日（卡片設定裡自填的優先）；同一家銀行的卡同一天結帳 ---- */
   let CYCD={}; try{ CYCD=JSON.parse(localStorage.getItem("cf-cyc")||"{}")||{}; }catch(e){}
-  const bankKey = b => { b=String(b||"").replace(/銀行|商業|國際|股份有限公司|\s/g,""); const A={"中國信託":"中信","國泰世華":"國泰","遠東商":"遠東","遠銀":"遠東","台北富邦":"富邦","臺北富邦":"富邦","匯豐":"滙豐","臺灣銀行":"臺灣","台灣銀行":"臺灣","LINEBank":"LINE"}; for(const k in A) if(b.startsWith(k)) return A[k]; return b.slice(0,2); };
-  function cycOf(c){ c=rootOf(c); if(!c || c.bank==="其他") return null; if(c.cycleDay) return {day:+c.cycleDay, src:"自填"}; const x=CYCD[bankKey(c.bank)]; return x&&x.day?{day:+x.day, vary:x.vary||[], src:"帳單"}:null; }
+  const bankKey = b => { b=String(b||"").replace(/銀行|商業|國際|股份有限公司|\s/g,""); const A={"中國信託":"中信","國泰世華":"國泰","遠東商":"遠東","遠銀":"遠東","台北富邦":"富邦","臺北富邦":"富邦","匯豐":"滙豐","臺灣企":"企銀","台灣企":"企銀","臺企":"企銀","台企":"企銀","臺灣":"臺銀","台灣":"臺銀","LINEBank":"LINE"}; for(const k in A) if(b.startsWith(k)) return A[k]; return b.slice(0,2); };
+  function cycOf(c){ c=rootOf(c); if(!c || c.bank==="其他") return null; if(c.cycleDay) return {day:+c.cycleDay, src:"自填"}; const x=CYCD[c.bank]||CYCD[bankKey(c.bank)]; return x&&x.day?{day:+x.day, vary:x.vary||[], src:"帳單"}:null; }
   function cycNext(day){ const t=new Date(), t0=new Date(t.getFullYear(),t.getMonth(),t.getDate()), dim=(y,m)=>new Date(y,m+1,0).getDate();
     let d=new Date(t0.getFullYear(),t0.getMonth(),Math.min(day,dim(t0.getFullYear(),t0.getMonth())));
     if(d<t0) d=new Date(t0.getFullYear(),t0.getMonth()+1,Math.min(day,dim(t0.getFullYear(),t0.getMonth()+1)));
@@ -1001,6 +1001,11 @@ html.nfbadge #entry .actions,html.nfbadge #incEntry .incbtn{bottom:calc(70px + v
     try{ const r=await af("/api/ledger?page=cards",{cache:"no-store"});
       if(!r.ok) return; const j=await r.json(); if(!j.blob) return; const o=JSON.parse(await openBlob(j.blob));
       try{ newCardRemind(o.cards||[]); }catch(e){}
+      try{ // Excel／帳單裡有、隨手記還沒有的卡：在「一鍵匯入」按鈕和卡片頁標題提示數量
+        const nw=(o.cards||[]).filter(x=>x.mine!==false && !D.cards.some(c=>(c.bank===x.bank||bankKey(c.bank)===bankKey(x.bank)) && ((x.last4&&String(c.name).includes(x.last4)) || normName(c.name)===normName(x.name)))).length;
+        const ib=$("impBtn"); if(ib) ib.textContent=nw?"⚡ 從我的帳單一鍵匯入（"+nw+" 張新卡）":"⚡ 從我的帳單一鍵匯入";
+        const cc=$("cardsCnt"); if(cc&&nw&&!/新卡/.test(cc.textContent)) cc.textContent+="・電腦發現 "+nw+" 張新卡";
+      }catch(e){}
       if(o.cyc && typeof o.cyc==="object"){ CYCD=o.cyc; try{ localStorage.setItem("cf-cyc",JSON.stringify(CYCD)); }catch(e){} renderChips(); renderCycList(); }
     }catch(e){}
   }
@@ -1033,7 +1038,7 @@ html.nfbadge #entry .actions,html.nfbadge #incEntry .incbtn{bottom:calc(70px + v
   }
   /* ---- 繳款截止日：各銀行最新一期帳單上的日期和本期應繳（電腦讀帳單時一起帶來）；過了截止日就不顯示（應該繳過了） ---- */
   function dueOf(bank){
-    const x=CYCD[bankKey(bank)]; if(!x) return null;
+    const x=CYCD[bank]||CYCD[bankKey(bank)]; if(!x) return null;
     const t=new Date(), t0=new Date(t.getFullYear(),t.getMonth(),t.getDate());
     if(x.due){ const p=String(x.due).split("-").map(Number), d=new Date(p[0],p[1]-1,p[2]); if(isNaN(d)) return null;
       const n=Math.round((d-t0)/864e5); if(n<0) return null;
