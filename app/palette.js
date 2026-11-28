@@ -44,17 +44,27 @@
       ';--bar:' + v[10] + ';--heat:' + v[9] + ';--gold:' + v[11] + ';--info-bg:' + v[12] + ';color-scheme:' + (v[13] ? 'dark' : 'light') + '}';
   }
   var cur = get();
-  if (cur) {
-    var H = document.documentElement;
-    H.setAttribute('data-palette', cur);
-    H.setAttribute('data-theme', P[cur][13] ? 'dark' : 'light');
+  // 套用（不用重新整理）：設定 data-palette、深淺、配色變數；p＝'' 回到原本的深藍
+  function apply(p, keep) {
+    if (!keep) set(p);
+    cur = p && P[p] ? p : '';
+    var H = document.documentElement, st = document.getElementById('ll-palette');
+    if (cur) {
+      H.setAttribute('data-palette', cur);
+      H.setAttribute('data-theme', P[cur][13] ? 'dark' : 'light');
+      if (!st && document.head) { st = document.createElement('style'); st.id = 'll-palette'; document.head.appendChild(st); }
+      if (st) st.textContent = cssApp(cur);
+    } else {
+      H.removeAttribute('data-palette');
+      if (st) st.textContent = '';
+    }
+    window.LLPalette.current = cur;
   }
   window.LLPalette = {
-    list: NAMES, current: cur, cssApp: cssApp, cssReport: cssReport, set: set,
+    list: NAMES, current: cur, cssApp: cssApp, cssReport: cssReport, set: set, apply: apply,
     navy: function () { return cur ? P[cur][7] : ''; },
-    dark: function () { return cur ? !!P[cur][13] : null; }
+    dark: function () { return cur ? !!P[cur][13] : null; },
+    swatch: function (p) { return P[p] ? [P[p][7], P[p][8], P[p][0]] : ['#0E2035', '#17304D', '#EEF1F4']; }   // 選單上的小色塊：主色、副色、底色
   };
-  if (cur && document.head) {
-    var st = document.createElement('style'); st.id = 'll-palette'; st.textContent = cssApp(cur); document.head.appendChild(st);
-  }
+  if (cur) apply(cur, true);
 })();

@@ -7,6 +7,9 @@
 <meta name="mobile-web-app-capable" content="yes">
 <meta name="apple-mobile-web-app-title" content="隨手記">
 <meta name="theme-color" content="#0E2035">
+<link rel="manifest" href="manifest.webmanifest">
+<link rel="icon" type="image/png" sizes="192x192" href="icons/icon-192.png">
+<link rel="apple-touch-icon" href="icons/apple-touch-icon.png">
 <title>LifeLedger 隨手記</title>
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
@@ -192,6 +195,16 @@ details.panel[open] summary::after{content:"－"}
 .cap .s b{font-weight:700}
 .cap .s b.ok{color:var(--ok)} .cap .s b.warn{color:var(--warn)} .cap .s b.bad{color:var(--bad)}
 .cap.nocap .t{display:none}
+.cyclist .cr .due{display:block;font-size:12px;margin-top:2px;color:var(--ink2)}.cyclist .cr .due b{color:var(--ink)}.cyclist .cr .due.soon b{color:var(--bad)}.cyclist .cr .due.free{color:var(--ok)}
+.topr{position:relative}
+.palpop{position:absolute;right:0;top:calc(100% + 8px);z-index:60;width:248px;background:var(--surface);color:var(--ink);border:1px solid var(--line);border-radius:14px;box-shadow:0 12px 34px rgba(0,0,0,.18);padding:10px;display:flex;flex-direction:column;gap:4px}
+.palpop .pt{font-size:12px;color:var(--muted);padding:2px 6px 4px}
+.palpop .po{display:flex;align-items:center;gap:10px;width:100%;border:0;background:transparent;border-radius:10px;padding:8px;cursor:pointer;text-align:left;font-size:14px;color:var(--ink)}
+.palpop .po:hover,.palpop .po:focus-visible{background:var(--surface2)}
+.palpop .po[aria-checked="true"]{background:var(--chip);font-weight:700}.palpop .po[aria-checked="true"]::after{content:"✓";margin-left:auto;color:var(--focus)}
+.palpop .sw{width:26px;height:26px;border-radius:50%;flex:none;box-shadow:inset 0 0 0 2px rgba(255,255,255,.55),0 0 0 1px var(--line)}
+.palpop .md{display:flex;gap:4px;padding:6px 4px 2px;border-top:1px solid var(--line);margin-top:4px;align-items:center;font-size:12px;color:var(--muted)}
+.palpop .md button{flex:1;border:1px solid var(--line);background:var(--surface2);color:var(--ink2);border-radius:8px;padding:5px 0;font-size:12px;cursor:pointer}.palpop .md button[aria-pressed="true"]{background:var(--navy);color:var(--on-navy);border-color:var(--navy)}
 .cychint{margin-top:6px;font-size:12.5px;line-height:1.5;padding:8px 10px;border-radius:8px;background:var(--surface2);color:var(--ink2);border-left:3px solid var(--line)}
 .cychint.bad{border-left-color:var(--bad);background:color-mix(in srgb,var(--bad) 8%,var(--surface))}.cychint.bad b{color:var(--bad)}
 .cychint.good{border-left-color:var(--ok);background:color-mix(in srgb,var(--ok) 8%,var(--surface))}.cychint.good b{color:var(--ok)}
@@ -210,6 +223,8 @@ a.lnk{color:var(--focus)}
 .topr{gap:4px}.sharebtn{width:34px;height:34px}.mon button{width:30px;height:32px}
 @media (max-width:400px){.mon{gap:2px}.mon span{font-size:12px;min-width:0}.mon button{width:26px;padding:0!important}.sharebtn{width:32px;height:32px}.brand small{font-size:8.5px;letter-spacing:.06em}.brand b{font-size:19px}}
 </style>
+<script src="palette.js"></script>
+<script src="qr.js"></script>
 </head>
 <body>
 <style>
@@ -396,7 +411,7 @@ html.nfbadge #entry .actions,html.nfbadge #incEntry .incbtn{bottom:calc(70px + v
     <div class="topr">
     <details class="swmenu"><summary class="sharebtn" aria-label="切換到月報或生活帳本" title="切換：月報／生活帳本"><svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" aria-hidden="true"><rect x="3" y="3" width="7" height="7" rx="1.5"/><rect x="14" y="3" width="7" height="7" rx="1.5"/><rect x="3" y="14" width="7" height="7" rx="1.5"/><rect x="14" y="14" width="7" height="7" rx="1.5"/></svg></summary>
       <div class="swpop" role="menu"><a role="menuitem" href="view.html?p=report">📅 月報</a><a role="menuitem" href="view.html?p=book">📒 生活帳本</a></div></details>
-    <button type="button" class="sharebtn" id="themeApp" aria-label="切換深淺色" title="深淺色：自動 → 淺色 → 深色"><svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true"><circle cx="12" cy="12" r="8"/><path d="M12 4a8 8 0 0 0 0 16z" fill="currentColor"/></svg></button>
+    <button type="button" class="sharebtn" id="themeApp" aria-label="換配色" title="換配色（跟電腦上的 LifeLedger 一樣）" aria-haspopup="menu" aria-expanded="false"><svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M12 3a9 9 0 1 0 0 18c1.1 0 1.8-.8 1.8-1.7 0-.5-.2-.9-.5-1.2-.3-.3-.5-.7-.5-1.2 0-1 .8-1.7 1.8-1.7H17a4 4 0 0 0 4-4c0-4.5-4-8.2-9-8.2z"/><circle cx="7.5" cy="11" r="1.2" fill="currentColor"/><circle cx="10.5" cy="7.3" r="1.2" fill="currentColor"/><circle cx="15" cy="7.6" r="1.2" fill="currentColor"/></svg></button>
     <button type="button" class="sharebtn" id="shareApp" aria-label="分享隨手記給朋友" title="分享隨手記給朋友（只分享網址，不含你的資料）"><svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="18" cy="5" r="3"/><circle cx="6" cy="12" r="3"/><circle cx="18" cy="19" r="3"/><path d="M8.6 13.5l6.8 4M15.4 6.5l-6.8 4"/></svg></button>
     <nav class="mon" aria-label="切換月份">
       <button id="prevM" aria-label="上個月">‹</button>
@@ -441,6 +456,8 @@ html.nfbadge #entry .actions,html.nfbadge #incEntry .incbtn{bottom:calc(70px + v
   <div id="main" hidden>
 
   <div class="remind" id="depRemind" hidden><span id="depRemindT"></span><button type="button" class="btn" id="depGo">去回填</button></div>
+  <div class="remind" id="newCardRemind" hidden><span id="newCardT"></span><button type="button" class="btn" id="newCardGo">加入</button><button type="button" class="btn ghost" id="newCardNo">之後再說</button></div>
+  <div class="remind" id="dueRemind" hidden><span id="dueRemindT"></span><button type="button" class="btn" id="dueGo">看卡片</button></div>
   <div class="remind" id="recRemind" hidden><span>還沒有<b>救援碼</b>：忘記密碼時要靠它重設，建議現在產生一組（30 秒）。</span><button type="button" class="btn" id="recGo">去產生</button></div>
   <section class="slip" id="slip" aria-label="本月摘要">
     <div class="slip-head">
@@ -684,6 +701,24 @@ html.nfbadge #entry .actions,html.nfbadge #incEntry .incbtn{bottom:calc(70px + v
   <details class="panel" id="settings">
     <summary>設定</summary>
     <div class="field">
+      <label class="flabel" for="palSel">配色</label>
+      <select id="palSel" class="inp"></select>
+      <p class="hint" style="margin:4px 0 0">跟電腦上的 LifeLedger 一樣的配色，月報、生活帳本也會一起換。右上角的 🎨 也可以直接換。從電腦版打開隨手記時會自動跟著電腦的配色。只記在這台裝置。</p>
+    </div>
+    <div class="field" id="pwaBox">
+      <span class="flabel">📱 放到手機主畫面（像 App 一樣用）</span>
+      <div id="pwaQr" hidden style="display:flex;gap:14px;align-items:center;margin:6px 0 4px">
+        <div id="pwaQrImg" style="background:#fff;border-radius:12px;padding:4px;border:2px solid var(--line);flex:none"></div>
+        <p class="hint" style="margin:0;line-height:1.7">在電腦上看到這一頁嗎？<b>用手機相機掃這個 QR code</b>，就會在手機上打開隨手記，再照下面的步驟加到主畫面。QR code 只有網址，不含你的帳號或資料。</p>
+      </div>
+      <div class="deptop" id="pwaInstallRow" hidden><button class="btn" type="button" id="pwaInstall">安裝到主畫面</button></div>
+      <p class="hint" id="pwaDone" hidden style="margin:4px 0 0">✓ 已經是 App 模式了。</p>
+      <p class="hint" id="pwaHow" style="margin:4px 0 0;line-height:1.7">
+        <b>iPhone／iPad</b>：用 Safari 打開這一頁 → 下方的「分享」按鈕 <span aria-hidden="true">⬆️</span> → 往下找「加入主畫面」→ 右上角「加入」。<br>
+        <b>Android</b>：用 Chrome 打開這一頁 → 右上角「⋮」→「安裝應用程式」或「加到主畫面」。<br>
+        之後從主畫面的錢包圖示打開，就是全螢幕的隨手記，登入狀態也會留著。長按圖示可以直接開月報、生活帳本（Android）。</p>
+    </div>
+    <div class="field">
       <label class="flabel" for="nfbSel">底部選單避開「Powered by Netlify」標籤</label>
       <select id="nfbSel" class="inp"><option value="auto">自動（標籤出現才往上移）</option><option value="on">一律往上移</option><option value="off">不要移</option></select>
     </div>
@@ -693,7 +728,7 @@ html.nfbadge #entry .actions,html.nfbadge #incEntry .incbtn{bottom:calc(70px + v
       <div id="recShow" hidden class="warnbox"></div>
       <details class="depbanks"><summary>改密碼</summary>
         <div class="deptop"><input id="npw1" type="password" class="inp" placeholder="新密碼（至少 6 個字）" autocomplete="new-password"><input id="npw2" type="password" class="inp" placeholder="再輸入一次" autocomplete="new-password"><button class="btn" type="button" id="npwGo">改密碼</button></div>
-        <p class="hint">改完之後，電腦的「設定精靈 → 【0b】隨手記」也要填新密碼，月報和生活帳本才會用新密碼重新加密。</p>
+        <p class="hint">改完之後，電腦上 LifeLedger 的「⚙️ 設定 → 隨手記帳號」也要填新密碼並儲存，月報和生活帳本才會用新密碼重新加密。</p>
       </details>
     </div>
     <div class="field" id="depBox">
@@ -757,7 +792,9 @@ html.nfbadge #entry .actions,html.nfbadge #incEntry .incbtn{bottom:calc(70px + v
 (function(){
   "use strict";
   const KEY = "cardflow-ledger-v1";
-  const BANKS = {"台新":"#2A78D6","永豐":"#EB6834","玉山":"#1BAF7A","聯邦":"#C98A00","中信":"#D9608E","星展":"#008300","國泰":"#4A3AA7","富邦":"#0E7C86","遠東":"#1E6F5C","滙豐":"#DB0011","其他":"#6B7686"};
+  const BANKS = {"台新":"#2A78D6","永豐":"#EB6834","玉山":"#1BAF7A","聯邦":"#C98A00","中信":"#D9608E","星展":"#008300","國泰":"#4A3AA7","富邦":"#0E7C86","遠東":"#1E6F5C","滙豐":"#DB0011",
+    "第一":"#0B5FA5","渣打":"#0072AA","凱基":"#3B4A8F","兆豐":"#B5262E","華南":"#C8501E","合庫":"#00694B","彰銀":"#E0457B","上海":"#9C2A3A","元大":"#1D4F91","新光":"#D7282F",
+    "企銀":"#005BAC","土銀":"#4E7D2E","臺銀":"#00703C","王道":"#E95513","樂天":"#BF0000","LINE Bank":"#06A94D","將來":"#5A3FD0","安泰":"#004B87","陽信":"#C2185B","美國運通":"#2E77BC","其他":"#6B7686"};
   const CATS = ["餐飲","超市便利商店","網購","交通停車加油","旅遊住宿","生活繳費","百貨購物","醫療","教育","運動休閒","保險","汽車保養","購車／汽機車","稅款","房貸","其他"];
   const $ = id => document.getElementById(id);
   const fmt = n => Math.round(n).toLocaleString("en-US");
@@ -868,7 +905,7 @@ html.nfbadge #entry .actions,html.nfbadge #incEntry .incbtn{bottom:calc(70px + v
   let M = TODAY.slice(0,7), selCard = null, selCat = null, editId = null, brkMode = "card";
   try{ selCard = localStorage.getItem("cf-lastcard"); }catch(e){}
 
-  const bankColor = b => BANKS[b] || BANKS["其他"];
+  const bankColor = b => BANKS[b] || (b && b!=="其他" ? "hsl("+([...String(b)].reduce((h,ch)=>(h*31+ch.charCodeAt(0))%360,7))+" 45% 42%)" : BANKS["其他"]);   // 清單外的銀行：用名字算一個固定顏色
   function badge(b){ const s=document.createElement("span"); s.className="bb"; s.style.background=bankColor(b); s.textContent=b||"其他"; return s; }
   const monLabel = m => m.slice(0,4)+" 年 "+Number(m.slice(5))+" 月";
   const daysIn = m => new Date(+m.slice(0,4), +m.slice(5), 0).getDate();
@@ -952,8 +989,8 @@ html.nfbadge #entry .actions,html.nfbadge #incEntry .incbtn{bottom:calc(70px + v
   }
   /* ---- 結帳日：電腦從各銀行帳單讀出的實際結帳日（卡片設定裡自填的優先）；同一家銀行的卡同一天結帳 ---- */
   let CYCD={}; try{ CYCD=JSON.parse(localStorage.getItem("cf-cyc")||"{}")||{}; }catch(e){}
-  const bankKey = b => { b=String(b||"").replace(/銀行|商業|國際|股份有限公司|\s/g,""); const A={"中國信託":"中信","國泰世華":"國泰","遠東商":"遠東","遠銀":"遠東","台北富邦":"富邦","臺北富邦":"富邦"}; for(const k in A) if(b.startsWith(k)) return A[k]; return b.slice(0,2); };
-  function cycOf(c){ c=rootOf(c); if(!c || c.bank==="其他") return null; if(c.cycleDay) return {day:+c.cycleDay, src:"自填"}; const x=CYCD[bankKey(c.bank)]; return x&&x.day?{day:+x.day, vary:x.vary||[], src:"帳單"}:null; }
+  const bankKey = b => { b=String(b||"").replace(/銀行|商業|國際|股份有限公司|\s/g,""); const A={"中國信託":"中信","國泰世華":"國泰","遠東商":"遠東","遠銀":"遠東","台北富邦":"富邦","臺北富邦":"富邦","匯豐":"滙豐","臺灣企":"企銀","台灣企":"企銀","臺企":"企銀","台企":"企銀","臺灣":"臺銀","台灣":"臺銀","LINEBank":"LINE"}; for(const k in A) if(b.startsWith(k)) return A[k]; return b.slice(0,2); };
+  function cycOf(c){ c=rootOf(c); if(!c || c.bank==="其他") return null; if(c.cycleDay) return {day:+c.cycleDay, src:"自填"}; const x=CYCD[c.bank]||CYCD[bankKey(c.bank)]; return x&&x.day?{day:+x.day, vary:x.vary||[], src:"帳單"}:null; }
   function cycNext(day){ const t=new Date(), t0=new Date(t.getFullYear(),t.getMonth(),t.getDate()), dim=(y,m)=>new Date(y,m+1,0).getDate();
     let d=new Date(t0.getFullYear(),t0.getMonth(),Math.min(day,dim(t0.getFullYear(),t0.getMonth())));
     if(d<t0) d=new Date(t0.getFullYear(),t0.getMonth()+1,Math.min(day,dim(t0.getFullYear(),t0.getMonth()+1)));
@@ -963,6 +1000,12 @@ html.nfbadge #entry .actions,html.nfbadge #incEntry .incbtn{bottom:calc(70px + v
   async function loadCyc(){
     try{ const r=await af("/api/ledger?page=cards",{cache:"no-store"});
       if(!r.ok) return; const j=await r.json(); if(!j.blob) return; const o=JSON.parse(await openBlob(j.blob));
+      try{ newCardRemind(o.cards||[]); }catch(e){}
+      try{ // Excel／帳單裡有、隨手記還沒有的卡：在「一鍵匯入」按鈕和卡片頁標題提示數量
+        const nw=(o.cards||[]).filter(x=>x.mine!==false && !D.cards.some(c=>(c.bank===x.bank||bankKey(c.bank)===bankKey(x.bank)) && ((x.last4&&String(c.name).includes(x.last4)) || normName(c.name)===normName(x.name)))).length;
+        const ib=$("impBtn"); if(ib) ib.textContent=nw?"⚡ 從我的帳單一鍵匯入（"+nw+" 張新卡）":"⚡ 從我的帳單一鍵匯入";
+        const cc=$("cardsCnt"); if(cc&&nw&&!/新卡/.test(cc.textContent)) cc.textContent+="・電腦發現 "+nw+" 張新卡";
+      }catch(e){}
       if(o.cyc && typeof o.cyc==="object"){ CYCD=o.cyc; try{ localStorage.setItem("cf-cyc",JSON.stringify(CYCD)); }catch(e){} renderChips(); renderCycList(); }
     }catch(e){}
   }
@@ -980,16 +1023,58 @@ html.nfbadge #entry .actions,html.nfbadge #incEntry .incbtn{bottom:calc(70px + v
     h.append(b,sp);
     if(c.src==="帳單" && (c.vary||[]).length>1){ const v=document.createElement("small"); v.style.cssText="display:block;opacity:.75;margin-top:2px"; v.textContent="近幾期實際是 "+c.vary[0]+"–"+c.vary[c.vary.length-1]+" 日，遇假日會提前或順延"; h.appendChild(v); }
   }
+  /* ---- 新卡提醒：電腦讀到的帳單上有、隨手記「我的卡片」還沒有的卡（Excel 生活總帳裡有的卡）→ 提醒一鍵加入 ---- */
+  function newCardRemind(L){
+    const box=$("newCardRemind"); if(!box) return;
+    let no=[]; try{ no=JSON.parse(localStorage.getItem("ll-newcard-no")||"[]"); }catch(e){}
+    const key=x=>bankKey(x.bank)+"|"+(x.last4||normName(x.name));
+    const fresh=L.filter(x=>x.mine!==false && (x.n||0)>=2 && !no.includes(key(x)) && !D.cards.some(c=>bankKey(c.bank)===bankKey(x.bank) && ((x.last4&&String(c.name).includes(x.last4)) || normName(c.name)===normName(x.name))));
+    if(!fresh.length){ box.hidden=true; return; }
+    const t=$("newCardT"); t.textContent=""; const b=document.createElement("b"); b.textContent="🆕 帳單上有 "+fresh.length+" 張卡還沒加到隨手記";
+    t.append(b, document.createTextNode("："+fresh.slice(0,3).map(x=>x.bank+" "+(x.name||"信用卡")+(x.last4?"・"+x.last4:"")).join("、")+(fresh.length>3?"…":"")+"。加了之後記帳可以選、回饋上限會自動算。"));
+    box.hidden=false;
+    $("newCardGo").onclick=()=>{ box.hidden=true; goPage("cards"); const p=$("impBox"); if(p && p.hidden) $("impBtn").click(); setTimeout(()=>{ const q=$("impBox"); if(q) q.scrollIntoView({block:"start"}); },120); };
+    $("newCardNo").onclick=()=>{ box.hidden=true; try{ localStorage.setItem("ll-newcard-no",JSON.stringify(no.concat(fresh.map(key)).slice(-200))); }catch(e){} };
+  }
+  /* ---- 繳款截止日：各銀行最新一期帳單上的日期和本期應繳（電腦讀帳單時一起帶來）；過了截止日就不顯示（應該繳過了） ---- */
+  function dueOf(bank){
+    const x=CYCD[bank]||CYCD[bankKey(bank)]; if(!x) return null;
+    const t=new Date(), t0=new Date(t.getFullYear(),t.getMonth(),t.getDate());
+    if(x.due){ const p=String(x.due).split("-").map(Number), d=new Date(p[0],p[1]-1,p[2]); if(isNaN(d)) return null;
+      const n=Math.round((d-t0)/864e5); if(n<0) return null;
+      return {d, n, amt:(typeof x.amt==="number"?x.amt:null), free:!!x.nopay}; }
+    return x.nopay && x.last && (t0-new Date(x.last))/864e5<35 ? {free:true} : null;
+  }
+  const money = v => "NT$ "+Math.abs(v).toLocaleString("en-US");
+  function dueLine(bank){
+    const u=dueOf(bank); if(!u) return null;
+    const e=document.createElement("span"); e.className="due";
+    if(u.free || (u.amt!=null && u.amt<=0)){ e.classList.add("free"); e.textContent="✓ 本期免繳"+(u.amt<0?"（溢繳 "+money(u.amt)+"）":""); return e; }
+    if(u.n<=3) e.classList.add("soon");
+    const b=document.createElement("b"); b.textContent="繳款截止 "+md(u.d)+"（"+(u.n===0?"今天":u.n+" 天後")+"）";
+    e.append(b, document.createTextNode(u.amt!=null?"・應繳 "+money(u.amt):"・金額請看帳單")); return e;
+  }
+  function dueRemind(){
+    const box=$("dueRemind"); if(!box) return;
+    const seen=new Set(), L=[];
+    D.cards.filter(k=>!k.parentId).forEach(k=>{ const bk=bankKey(k.bank); if(seen.has(bk)) return; seen.add(bk); const u=dueOf(k.bank); if(u && !u.free && u.n<=7 && !(u.amt!=null && u.amt<=0)) L.push({bank:k.bank,u}); });
+    if(!L.length){ box.hidden=true; return; }
+    L.sort((a,b)=>a.u.n-b.u.n); const t=$("dueRemindT"); t.textContent="";
+    const b=document.createElement("b"); b.textContent="💳 繳款提醒"; t.append(b, document.createTextNode("："+L.map(o=>o.bank+" "+md(o.u.d)+(o.u.n===0?" 今天":"（"+o.u.n+" 天後）")+(o.u.amt!=null?" "+money(o.u.amt):"")).join("、")));
+    box.hidden=false;
+  }
   function renderCycList(){
     const box=$("cycList"); if(!box) return; box.textContent="";
     const g=new Map(); D.cards.filter(k=>!k.parentId).forEach(k=>{ const c=cycOf(k); if(!c) return; const key=bankKey(k.bank)+"|"+c.day; const o=g.get(key)||{bank:k.bank,c,n:0}; o.n++; g.set(key,o); });
     if(!g.size){ box.hidden=true; return; } box.hidden=false;
-    const hd=document.createElement("div"); hd.className="ch"; hd.innerHTML="<span>每月結帳日</span><small>結帳前 3 天先別刷；剛結帳的卡最晚繳</small>"; box.appendChild(hd);
+    const hd=document.createElement("div"); hd.className="ch"; hd.innerHTML="<span>每月結帳日・繳款截止日</span><small>結帳前 3 天先別刷；繳款日是最新一期帳單上寫的</small>"; box.appendChild(hd);
     [...g.values()].map(o=>Object.assign(o,{x:cycNext(o.c.day)})).sort((a,b)=>a.x.n-b.x.n).forEach(o=>{
       const r=document.createElement("div"); r.className="cr"; r.appendChild(badge(o.bank));
       const d=document.createElement("div"); d.className="d"; const bb=document.createElement("b"); bb.textContent="每月 "+o.c.day+" 日"; d.append(bb, document.createTextNode("・下次 "+md(o.x.d)+(o.n>1?"・"+o.n+" 張卡":"")+(o.c.src==="自填"?"・自填":"")));
       const st=document.createElement("span"); st.className="s "+o.x.k; st.textContent=o.x.k==="bad"?("⚠ "+(o.x.n===0?"今天結帳":o.x.n+" 天後結帳")):o.x.k==="good"?"✓ 剛結帳":"還有 "+o.x.n+" 天";
+      const dl=dueLine(o.bank); if(dl) d.appendChild(dl);
       r.append(d,st); box.appendChild(r); });
+    try{ dueRemind(); }catch(e){}
   }
   function renderChips(){
     const cc=$("cardChips"); cc.textContent="";
@@ -1151,7 +1236,17 @@ html.nfbadge #entry .actions,html.nfbadge #incEntry .incbtn{bottom:calc(70px + v
       d.appendChild(sm);
       const w=document.createElement("div"); w.className="cedit";
       const sel=document.createElement("select"); sel.className="inp f-bank"; sel.setAttribute("aria-label","銀行");
-      Object.keys(BANKS).forEach(b=>{ const o=document.createElement("option"); o.value=b; o.textContent=b; if(b===c.bank) o.selected=true; sel.appendChild(o); });
+      // 銀行：清單＋這張卡原本的銀行（不在清單裡也要保留，不然一儲存就被改成第一個）＋自己輸入
+      const bl=Object.keys(BANKS).filter(b=>b!=="其他"); if(c.bank && c.bank!=="其他" && !bl.includes(c.bank)) bl.push(c.bank); bl.push("其他");
+      bl.forEach(b=>{ const o=document.createElement("option"); o.value=b; o.textContent=b; if(b===c.bank) o.selected=true; sel.appendChild(o); });
+      const on=document.createElement("option"); on.value="__new"; on.textContent="＋ 其他銀行（自己輸入）"; sel.appendChild(on);
+      if(!bl.includes(c.bank)) sel.value="其他";
+      sel.dataset.prev=sel.value;
+      sel.addEventListener("change",()=>{ if(sel.value!=="__new"){ sel.dataset.prev=sel.value; return; }
+        const n=(prompt("銀行名稱（例如 渣打、凱基、第一）","")||"").trim().replace(/銀行$/,"").slice(0,12);
+        if(!n){ sel.value=sel.dataset.prev||"其他"; return; }
+        let o=[...sel.options].find(x=>x.value===n); if(!o){ o=document.createElement("option"); o.value=n; o.textContent=n; sel.insertBefore(o,on); }
+        sel.value=n; sel.dataset.prev=n; cardDirty(); });
       const nm=document.createElement("input"); nm.className="inp f-name"; nm.value=c.name; nm.setAttribute("aria-label","卡名"); nm.maxLength=40;
       nm.addEventListener("input",()=>{ nm0.textContent=dispName({name:nm.value,parentId:c.parentId}); });
       const del=document.createElement("button"); del.type="button"; del.className="del"; del.textContent="移除";
@@ -1388,7 +1483,7 @@ html.nfbadge #entry .actions,html.nfbadge #incEntry .incbtn{bottom:calc(70px + v
       const r=await af("/api/ledger?page=cards",{cache:"no-store"});
       if(r.status===400){ info.textContent="隨手記網站還是舊版，請先更新網站。"; return; }
       const j=await r.json();
-      if(!j.blob){ info.textContent="電腦還沒上傳你的卡片清單：電腦上的 LifeLedger 更新一次（或按「立即更新月報」）就會出現。"; return; }
+      if(!j.blob){ info.textContent="電腦還沒上傳你的卡片清單：電腦上的 LifeLedger 更新一次（或按首頁的「立即更新全部帳目」）就會出現。"; return; }
       const L=JSON.parse(await openBlob(j.blob)).cards||[];
       const have=readCardEdit();
       IMP=L.map(x=>{ const bank=catBank(x.bank), name=(x.name||"信用卡")+(x.last4?"・"+x.last4:"");
@@ -1402,7 +1497,7 @@ html.nfbadge #entry .actions,html.nfbadge #incEntry .incbtn{bottom:calc(70px + v
         const d=document.createElement("div"); d.className="hint"; d.textContent=(it.x.n?"近一年刷 "+it.x.n+" 筆":"")+(it.x.last?"・最近 "+it.x.last:"")+(it.x.mine===false?"・家人附卡":"");
         t.append(h,d); r.append(cb,t); box.appendChild(r); });
       $("impGo").hidden=$("impAll").hidden=!IMP.some(x=>!x.dup);
-    }catch(e){ info.textContent="讀不到卡片清單（"+e.message+"）。密碼改過的話，電腦的設定精靈【0b】要改成新密碼再更新一次。"; }
+    }catch(e){ info.textContent="讀不到卡片清單（"+e.message+"）。密碼改過的話，電腦上 LifeLedger 的「設定 → 隨手記帳號」要改成新密碼再更新一次。"; }
   }
   $("impBtn").addEventListener("click",()=>{ const p=$("impBox"); p.hidden=!p.hidden; $("picker").hidden=true; if(!p.hidden) loadImport(); });
   $("impAll").addEventListener("click",()=>{ const cs=[...$("impList").querySelectorAll("input:not(:disabled)")]; const on=cs.some(c=>!c.checked); cs.forEach(c=>c.checked=on); });
@@ -2029,14 +2124,37 @@ html.nfbadge #entry .actions,html.nfbadge #incEntry .incbtn{bottom:calc(70px + v
     const row=mk("div","exrow"); row.append(sv,lk); add(row);
   }
 
-  (function(){ // 深淺色：自動（跟系統）→ 淺色 → 深色，記在這台手機
-    const modes=["auto","light","dark"], lab={auto:"自動（跟系統）",light:"淺色",dark:"深色"};
-    function ap(m){ if(m==="auto") document.documentElement.removeAttribute("data-theme"); else document.documentElement.setAttribute("data-theme",m);
-      const b=$("themeApp"); b.dataset.mode=m; b.title="深淺色："+lab[m]+"（點一下切換）"; b.setAttribute("aria-label","深淺色："+lab[m]);
-      const mt=document.querySelector('meta[name="theme-color"]'); if(mt){ const dark=m==="dark"||(m==="auto"&&matchMedia("(prefers-color-scheme: dark)").matches); mt.setAttribute("content",dark?"#0B121C":"#0E2035"); } }
-    let s="auto"; try{ s=localStorage.getItem("ll-theme")||"auto"; }catch(e){}
-    ap(modes.indexOf(s)<0?"auto":s);
-    $("themeApp").addEventListener("click",()=>{ const m=modes[(modes.indexOf($("themeApp").dataset.mode)+1)%3]; ap(m); try{ localStorage.setItem("ll-theme",m); }catch(e){} toast("深淺色："+lab[m]); });
+  (function(){ // 配色＋深淺：右上角 🎨 打開選單，點一下馬上換（跟電腦版 LifeLedger 同一組配色），記在這台裝置
+    const H=document.documentElement, L=window.LLPalette, btn=$("themeApp"), modes=["auto","light","dark"], lab={auto:"自動",light:"淺色",dark:"深色"};
+    const meta=()=>{ const mt=document.querySelector('meta[name="theme-color"]'); if(!mt) return;
+      if(L&&L.current){ mt.setAttribute("content",L.navy()); return; }
+      const m=btn.dataset.mode||"auto", dark=m==="dark"||(m==="auto"&&matchMedia("(prefers-color-scheme: dark)").matches); mt.setAttribute("content",dark?"#0B121C":"#0E2035"); };
+    const ap=m=>{ if(m==="auto") H.removeAttribute("data-theme"); else H.setAttribute("data-theme",m); btn.dataset.mode=m; meta(); };
+    const saved=()=>{ let m="auto"; try{ m=localStorage.getItem("ll-theme")||"auto"; }catch(e){} return modes.includes(m)?m:"auto"; };
+    if(L&&L.current) meta(); else ap(saved());
+    const pop=document.createElement("div"); pop.className="palpop"; pop.hidden=true; pop.setAttribute("role","menu"); pop.setAttribute("aria-label","配色");
+    btn.insertAdjacentElement("afterend",pop);
+    function render(){
+      pop.textContent=""; const t=document.createElement("div"); t.className="pt"; t.textContent="配色（月報、生活帳本也會一起換）"; pop.appendChild(t);
+      Object.keys(L?L.list:{"":1}).forEach(k=>{ const o=document.createElement("button"); o.type="button"; o.className="po"; o.setAttribute("role","menuitemradio");
+        o.setAttribute("aria-checked",String(((L&&L.current)||"")===k)); const sw=document.createElement("span"); sw.className="sw"; const c=L?L.swatch(k):["#0E2035","#17304D"];
+        sw.style.background="linear-gradient(135deg,"+c[0]+" 0 50%,"+c[1]+" 50% 100%)"; const n=document.createElement("span"); n.textContent=L?L.list[k]:"原本";
+        o.append(sw,n); o.addEventListener("click",()=>choose(k)); pop.appendChild(o); });
+      if(!(L&&L.current)){ const md=document.createElement("div"); md.className="md"; md.append(document.createTextNode("深淺"));
+        modes.forEach(m=>{ const x=document.createElement("button"); x.type="button"; x.textContent=lab[m]; x.setAttribute("aria-pressed",String((btn.dataset.mode||"auto")===m));
+          x.addEventListener("click",()=>{ ap(m); try{ localStorage.setItem("ll-theme",m); }catch(e){} render(); }); md.appendChild(x); });
+        pop.appendChild(md); }
+    }
+    function choose(k){
+      if(L) L.apply(k); if(!k) ap(saved()); else meta();
+      try{ const u=new URL(location.href); if(u.searchParams.has("theme")){ u.searchParams.delete("theme"); history.replaceState(null,"",u.toString()); } }catch(e){}
+      const ps=$("palSel"); if(ps) ps.value=k; render(); toast("配色："+(L?L.list[k]:"原本"));
+    }
+    window.llChoosePalette=choose;
+    const close=()=>{ pop.hidden=true; btn.setAttribute("aria-expanded","false"); };
+    btn.addEventListener("click",e=>{ e.stopPropagation(); if(pop.hidden){ render(); pop.hidden=false; btn.setAttribute("aria-expanded","true"); } else close(); });
+    document.addEventListener("click",e=>{ if(!pop.hidden && !pop.contains(e.target)) close(); });
+    document.addEventListener("keydown",e=>{ if(e.key==="Escape" && !pop.hidden){ close(); btn.focus(); } });
   })();
   $("shareApp").addEventListener("click",async()=>{
     // 只分享 App 網址：朋友打開後自己註冊帳號，資料各自分開，不會看到你的記帳
@@ -2127,12 +2245,29 @@ html.nfbadge #entry .actions,html.nfbadge #incEntry .incbtn{bottom:calc(70px + v
     const m=prevM(), miss=depBanks().filter(b=>!depOf(b,m)); const show=false;
     $("depRemind").hidden=!show; if(show) $("depRemindT").textContent="記得回填 "+Number(m.slice(5))+" 月底存款："+miss.join("、");
   }
+  $("dueGo").addEventListener("click",()=>{ goPage("cards"); const c=$("cycList"); if(c) c.scrollIntoView({block:"start"}); });
   $("depGo").addEventListener("click",()=>{ goPage("set"); $("depMonth").value=prevM(); renderDep(); $("depBox").scrollIntoView({block:"start"}); const f=$("depList").querySelector("input[value='']")||$("depList").querySelector("input"); if(f) f.focus(); });
   $("depMonth").addEventListener("change",renderDep);
   /* ====== 帳號安全：救援碼、改密碼 ====== */
   async function acctApi(action,method,body){ const r=await af("/api/ledger?action="+action,{method,cache:"no-store",headers:{"content-type":"application/json"},body:body?JSON.stringify(body):undefined}); let j={}; try{j=await r.json()}catch(e){} return {ok:r.ok,status:r.status,j}; }
   let recChecked=false;
   async function recRemind(){ if(recChecked) return; recChecked=true; try{ const a=await acctApi("account","GET"); $("recRemind").hidden=!(a.ok && !a.j.hasRecovery); }catch(e){} }
+  try{ // 配色
+    const ps=$("palSel"), L=window.LLPalette; if(L){ Object.keys(L.list).forEach(k=>{ const o=document.createElement("option"); o.value=k; o.textContent=L.list[k]; ps.append(o); });
+      ps.value=L.current||""; ps.addEventListener("change",()=>{ if(window.llChoosePalette) llChoosePalette(ps.value); }); }
+  }catch(e){}
+  try{ // 手機 App（PWA）：註冊 service worker、Android 的安裝按鈕、已經是 App 模式就不再教
+    if("serviceWorker" in navigator && location.protocol==="https:") navigator.serviceWorker.register("sw.js").catch(()=>{});
+    const standalone=matchMedia("(display-mode: standalone)").matches||navigator.standalone===true;
+    if(standalone){ $("pwaHow").hidden=true; $("pwaDone").hidden=false; }
+    else if(window.QR && matchMedia("(pointer: fine)").matches && innerWidth>=700){   // 在電腦上：給手機掃的 QR code
+      const L=window.LLPalette, u=location.origin+location.pathname+(L&&L.current?"?theme="+L.current:"");
+      try{ $("pwaQrImg").innerHTML=QR.svg(u,{px:4}); $("pwaQr").hidden=false; }catch(e){}
+    }
+    let ev=null; addEventListener("beforeinstallprompt",e=>{ e.preventDefault(); ev=e; $("pwaInstallRow").hidden=false; });
+    $("pwaInstall").addEventListener("click",async()=>{ if(!ev) return; ev.prompt(); try{ await ev.userChoice; }catch(e){} ev=null; $("pwaInstallRow").hidden=true; });
+    addEventListener("appinstalled",()=>{ $("pwaInstallRow").hidden=true; toast("已加到主畫面 🎉"); });
+  }catch(e){}
   try{ $("nfbSel").value=window.llBadgeModeGet?llBadgeModeGet():"auto"; $("nfbSel").addEventListener("change",e=>{ if(window.llBadgeMode) llBadgeMode(e.target.value); }); }catch(e){}
   $("recGo").addEventListener("click",()=>{ $("recRemind").hidden=true; goPage("set"); setTimeout(()=>{ const st=$("settings"); if(st) st.open=true; const b=$("secBox"); if(b){ b.scrollIntoView({behavior:"smooth",block:"center"}); } },120); });
   async function renderSec(){ try{ const a=await acctApi("account","GET"); if(a.ok&&a.j.hasRecovery) $("recRemind").hidden=true; $("recInfo").textContent=a.ok?(a.j.hasRecovery?"已有救援碼（"+String(a.j.recAt).slice(0,10)+" 產生）；再產生一次舊的就失效":"還沒有救援碼：忘記密碼時要用，建議現在產生"):""; }catch(e){} }
@@ -2160,7 +2295,7 @@ html.nfbadge #entry .actions,html.nfbadge #incEntry .incbtn{bottom:calc(70px + v
     }catch(e){ return toast("沒有改密碼："+((e&&e.message)||"網路有問題"),true); }
     const a=await acctApi("changepw","POST",body); if(!a.ok) return toast(a.j.error||"改密碼失敗",true);
     PW=a1; LK=body.newLoginKey||null; AUTH.legacy=false; AUTH.lkOk=false; AUTH.lkSaved=false;   // 資料金鑰和帳本沒有變（DEK、ENC 留著用）
-    LLSync.credSave(LS, SS, USER, a1, REMEMBER); $("npw1").value=$("npw2").value=""; toast("密碼已改好。記得電腦的設定精靈【0b】也要改成新密碼"); });
+    LLSync.credSave(LS, SS, USER, a1, REMEMBER); $("npw1").value=$("npw2").value=""; toast("密碼已改好。記得電腦上 LifeLedger 的「設定 → 隨手記帳號」也要改成新密碼"); });
   /* ====== 把雲端帳本搬成加密（每個帳號第一次用新版登入時；見 cardflow-ledger docs/encryption.md） ======
    * 順序（每一步都可以中斷，下次登入接著做）：
    *  1. 產生新救援碼，使用者確認抄下來（舊救援碼沒有保管資料金鑰，所以一定要換新的）
@@ -2421,7 +2556,7 @@ html.nfbadge #entry .actions,html.nfbadge #incEntry .incbtn{bottom:calc(70px + v
           ? (body.admin ? "這個帳號的帳本已經加密，管理碼只能重設登入、解不開帳本，所以沒有重設。請網站管理者在電腦上用救援工具幫你重設。"
                         : "這個帳號的帳本已經加密，但這個救援碼沒有保管資料金鑰，所以沒有重設（帳本沒有被改動）。請聯絡網站管理者。")
           : (j.error||("失敗（"+r.status+"）")); return; }
-      m.className="toast ok"; m.textContent="新密碼設好了，請用新密碼登入。記得電腦的設定精靈【0b】也要改成新密碼。"; $("uName").value=u; $("pw").value=""; $("pwErr").textContent="";
+      m.className="toast ok"; m.textContent="新密碼設好了，請用新密碼登入。記得電腦上 LifeLedger 的「設定 → 隨手記帳號」也要改成新密碼。"; $("uName").value=u; $("pw").value=""; $("pwErr").textContent="";
     }catch(e){ m.className="toast err"; m.textContent=(e&&e.code)?e.message:"連不上伺服器"; }
     finally{ $("fgGo").disabled=false; }
   });
